@@ -1,7 +1,30 @@
 {% extends "base.html" %}
+{% block title %}Tjek din mail{% endblock %}
 {% block content %}
+<div class="center">
 <h1>Tjek din mail</h1>
-<p>Hvis adressen kan bruges, har vi sendt et link. Det virker i 15 minutter
-og kan kun bruges én gang.</p>
-<p class="muted">Kommer der ikke noget, så kig i spam-mappen.</p>
+<p>Hvis adressen kan bruges, har vi sendt en mail med et link og en kode.
+De virker i 15 minutter og kan kun bruges én gang.</p>
+{% if has_code %}
+<form method="post" action="/kode" class="code-form">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  {% if code_error %}<p class="error" role="alert">{{ code_error }}</p>{% endif %}
+  <label>Skriv koden fra mailen
+    <input type="text" name="code" required inputmode="numeric"
+           pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code"
+           autocapitalize="none" autocorrect="off" spellcheck="false"
+           enterkeyhint="go" placeholder="123 456"></label>
+  <button type="submit">Log ind</button>
+</form>
+<p class="hint">Bruger du appen på hjemmeskærmen, så skriv koden her. Et
+klik på linket åbner Safari i stedet for appen.</p>
+{% else %}
+<p class="muted">Klik på linket i mailen. Vil du bruge en kode i stedet,
+så bed om en ny fra forsiden.</p>
+{% endif %}
+<p class="muted">Kommer der ikke noget inden for et par minutter, så kig i
+spam-mappen. Bad du om et login-link uden at have en konto, sendes der
+ingen mail - tilmeld dig i stedet.</p>
+<div class="buttons"><a class="button secondary" href="/">Til forsiden</a></div>
+</div>
 {% endblock %}

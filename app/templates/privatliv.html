@@ -7,22 +7,24 @@ skolen eller itslearning. Kontakt: <a href="mailto:{{ contact_email }}">{{ conta
 Driftsherren er dataansvarlig for de oplysninger, der står nedenfor.</p>
 
 <h2>Hvad gemmes, og hvorfor</h2>
-<table>
-  <tr><th>Oplysning</th><th>Formål</th><th>Hvordan</th></tr>
-  <tr><td>Din mailadresse og evt. ekstra modtagere</td><td>Login og levering af mails</td>
-      <td>I databasen på en krypteret disk</td></tr>
-  <tr><td>Brugernavn og kodeord til ForældreIntra</td><td>Logge ind på dine vegne</td>
-      <td>Kodeordet er krypteret med AES-256-GCM. Nøglen ligger ikke i databasen</td></tr>
-  <tr><td>Egen API-nøgle (valgfri)</td><td>AI-resuméer på din regning</td>
-      <td>Krypteret på samme måde</td></tr>
-  <tr><td>Hentede sider og billeder fra ForældreIntra</td><td>Undgå at hente det samme igen</td>
-      <td>På krypteret disk, slettes automatisk efter {{ retention_days }} dage</td></tr>
-  <tr><td>Markering af sendte mails</td><td>Så du ikke får den samme mail to gange</td>
-      <td>Kun et id. Der gemmes ingen kopi af selve mailen</td></tr>
-  <tr><td>Ugeplanernes punkter</td><td>"Nyt siden sidst" i ugeplan-mails</td>
-      <td>Slettes efter 14 dage</td></tr>
-  <tr><td>Log over de seneste 10 kørsler og 50 hændelser</td><td>Fejlfinding</td>
-      <td>Kan indeholde børnenes navne og titler på beskeder. Ingen kodeord</td></tr>
+<table class="stack">
+  <thead><tr><th scope="col">Oplysning</th><th scope="col">Formål</th><th scope="col">Hvordan</th></tr></thead>
+  <tbody>
+  <tr><td>Din mailadresse og evt. ekstra modtagere</td><td data-label="Formål">Login og levering af mails</td>
+      <td data-label="Hvordan">I databasen på en krypteret disk</td></tr>
+  <tr><td>Brugernavn og kodeord til ForældreIntra</td><td data-label="Formål">Logge ind på dine vegne</td>
+      <td data-label="Hvordan">Kodeordet er krypteret med AES-256-GCM. Nøglen ligger ikke i databasen</td></tr>
+  <tr><td>Egen API-nøgle (valgfri)</td><td data-label="Formål">AI-resuméer på din regning</td>
+      <td data-label="Hvordan">Krypteret på samme måde</td></tr>
+  <tr><td>Hentede sider og billeder fra ForældreIntra</td><td data-label="Formål">Undgå at hente det samme igen</td>
+      <td data-label="Hvordan">På krypteret disk, slettes automatisk efter {{ retention_days }} dage</td></tr>
+  <tr><td>Markering af sendte mails</td><td data-label="Formål">Så du ikke får den samme mail to gange</td>
+      <td data-label="Hvordan">Kun et id. Der gemmes ingen kopi af selve mailen</td></tr>
+  <tr><td>Ugeplanernes punkter</td><td data-label="Formål">"Nyt siden sidst" i ugeplan-mails</td>
+      <td data-label="Hvordan">Slettes efter 14 dage</td></tr>
+  <tr><td>Log over de seneste 10 kørsler og 50 hændelser</td><td data-label="Formål">Fejlfinding</td>
+      <td data-label="Hvordan">Kan indeholde børnenes navne og titler på beskeder. Ingen kodeord</td></tr>
+  </tbody>
 </table>
 
 <h2>Databehandlere</h2>
@@ -40,8 +42,9 @@ Driftsherren er dataansvarlig for de oplysninger, der står nedenfor.</p>
 <ul>
   <li>Al trafik er krypteret (HTTPS). Mails sendes via en krypteret og
   certifikat-tjekket forbindelse.</li>
-  <li>Der er ingen adgangskode til tjenesten, kun engangslinks på mail.
-  Kun en hash af links og sessioner gemmes.</li>
+  <li>Der er ingen adgangskode til tjenesten, kun engangslinks og
+  -koder på mail. En kode virker kun i den app eller browser, der bad om
+  den. Kun en hash af links, koder og sessioner gemmes.</li>
   <li>En ny modtager skal godkendes fra din login-mail og bekræftes af
   modtageren. Så kan en anden ikke omdirigere dine mails.</li>
   <li>Hver forælder køres i sin egen proces og har sit eget katalog.</li>

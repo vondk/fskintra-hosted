@@ -3,19 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
 <title>{{ subject }}</title>
+{#- Mørk tilstand for mailprogrammer, der understøtter den (fx Apple Mail
+    og Outlook). De øvrige viser den lyse udgave fra de inline styles -#}
+<style>
+:root { color-scheme: light dark; supported-color-schemes: light dark; }
+@media (prefers-color-scheme: dark) {
+  .m-bg { background: #121517 !important; }
+  .m-card { background: #1b1f23 !important; border-color: #2c3238 !important; }
+  .m-label { color: #9aa5af !important; }
+  .m-fg { color: #e6e8ea !important; }
+  .m-text { color: #c9ced3 !important; }
+  .m-muted { color: #9aa5af !important; }
+  .m-link { color: #6aa8ff !important; }
+  .m-box { border-color: #434b53 !important; }
+  .m-note { background: #121517 !important; color: #c9ced3 !important; }
+  .m-rule { border-color: #2c3238 !important; }
+}
+</style>
 </head>
-<body style="margin:0;padding:0;background:#f4f2ee;">
+<body class="m-bg" style="margin:0;padding:0;background:#f4f2ee;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{ preheader }}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f2ee;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-bg" style="background:#f4f2ee;">
 <tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background:#ffffff;border:1px solid #e4e0d8;border-radius:12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="m-card" style="max-width:520px;background:#ffffff;border:1px solid #e4e0d8;border-radius:12px;">
 <tr><td style="padding:28px 32px 4px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<div style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;color:{{ accent }};">{{ service }}</div>
-<h1 style="margin:10px 0 0;font-size:22px;line-height:1.3;font-weight:700;color:#1d2125;">{{ heading }}</h1>
+<div class="m-label" style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;color:{{ accent }};">{{ service }}</div>
+<h1 class="m-fg" style="margin:10px 0 0;font-size:22px;line-height:1.3;font-weight:700;color:#1d2125;">{{ heading }}</h1>
 </td></tr>
-<tr><td style="padding:14px 32px 0;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.55;color:#33393f;">
+<tr><td class="m-text" style="padding:14px 32px 0;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.55;color:#33393f;">
 {% for p in paragraphs %}<p style="margin:0 0 14px;">{{ p }}</p>{% endfor %}
 </td></tr>
 {% if button_url %}
@@ -25,22 +43,31 @@
 <a href="{{ button_url }}" style="display:inline-block;padding:13px 26px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;">{{ button_label }}</a>
 </td></tr></table>
 </td></tr>
-<tr><td style="padding:14px 32px 0;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#6b737b;">
+<tr><td class="m-muted" style="padding:14px 32px 0;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#6b737b;">
 Virker knappen ikke? Kopiér linket ind i din browser:<br>
-<a href="{{ button_url }}" style="color:{{ accent }};word-break:break-all;">{{ button_url }}</a>
+<a href="{{ button_url }}" class="m-link" style="color:{{ accent }};word-break:break-all;">{{ button_url }}</a>
+</td></tr>
+{% endif %}
+{% if code %}
+<tr><td style="padding:18px 32px 0;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<div class="m-box" style="border:1px solid #e4e0d8;border-radius:8px;padding:14px 16px;text-align:center;">
+<div class="m-text" style="font-size:14px;line-height:1.5;color:#4b535a;">Bruger du appen på hjemmeskærmen? Skriv koden der:</div>
+<div class="m-fg" style="margin-top:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:28px;font-weight:700;letter-spacing:0.12em;color:#1d2125;">{{ code }}</div>
+<div class="m-muted" style="margin-top:6px;font-size:12px;line-height:1.5;color:#6b737b;">Koden virker kun i den app eller browser, hvor du bad om den. Del den aldrig med andre.</div>
+</div>
 </td></tr>
 {% endif %}
 {% if notes %}
 <tr><td style="padding:18px 32px 0;">
-<div style="background:#f7f5f1;border-radius:8px;padding:12px 16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#4b535a;">
+<div class="m-note" style="background:#f7f5f1;border-radius:8px;padding:12px 16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5;color:#4b535a;">
 {% for n in notes %}<p style="margin:{{ '0' if loop.first else '8px' }} 0 0;">{{ n }}</p>{% endfor %}
 </div>
 </td></tr>
 {% endif %}
 <tr><td style="padding:24px 32px 28px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<div style="border-top:1px solid #ece8e1;padding-top:16px;font-size:12px;line-height:1.6;color:#8a9199;">
+<div class="m-rule m-muted" style="border-top:1px solid #ece8e1;padding-top:16px;font-size:12px;line-height:1.6;color:#8a9199;">
 {{ service }} er en privat, uofficiel tjeneste for klassens forældre{% if operator %}, lavet af {{ operator }}{% endif %}. Den kommer ikke fra skolen eller itslearning.<br>
-<a href="{{ public_url }}/privatliv" style="color:#8a9199;">Privatliv og sikkerhed</a>
+<a href="{{ public_url }}/privatliv" class="m-muted" style="color:#8a9199;">Privatliv og sikkerhed</a>
 </div>
 </td></tr>
 </table>

@@ -16,6 +16,7 @@ def test_render_has_text_and_html_with_link(ctx):
         assert '15 minutter' in part
     assert html.lstrip().startswith('<!doctype html>')
     assert '<script' not in html and '<img' not in html
+    assert 'prefers-color-scheme: dark' in html  # følger systemets tema
 
 
 def test_operator_name_in_footer_only_when_set(ctx):

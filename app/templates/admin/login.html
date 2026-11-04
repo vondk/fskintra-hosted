@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Admin{% endblock %}
 {% block content %}
+<div class="center">
 <h1>Admin</h1>
-{% if sent %}<p class="ok">Hvis adressen er admin, er der sendt et link.</p>{% endif %}
+{% if sent %}<p class="flash" role="status">Hvis adressen er admin, er der sendt et link.</p>{% endif %}
 <form method="post" action="/admin/login">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-  <label>Admin-mail <input type="email" name="email" required maxlength="254"></label>
+  <label>Admin-mail <input type="email" name="email" required maxlength="254"
+    autocomplete="email" autocapitalize="none" spellcheck="false"></label>
   <button type="submit">Send login-link</button>
 </form>
+</div>
 {% endblock %}

@@ -1,38 +1,45 @@
 {% extends "base.html" %}
 {% block content %}
-{% if deleted %}<p class="ok">Din konto og alle dine data er slettet.</p>{% endif %}
+{% if deleted %}<p class="flash" role="status">Din konto og alle dine data er slettet.</p>{% endif %}
+{% if has_code %}<p class="flash" role="status">Venter du på en kode?
+<a href="/kode">Skriv koden fra mailen her</a>.</p>{% endif %}
 <h1>Nyt fra ForældreIntra direkte i din mail</h1>
-<p>Tjenesten logger ind på ForældreIntra for dig og sender nye beskeder,
-opslag, ugeplaner, lektier og billeder som almindelige mails. Ændres en
-ugeplan, står det nye øverst i mailen.</p>
+<p class="lead">Tjenesten logger ind på ForældreIntra for dig og sender nye
+beskeder, opslag, ugeplaner, lektier og billeder som almindelige mails.
+Ændres en ugeplan, står det nye øverst i mailen.</p>
 <p>Den er kun for forældre i klassen, der har fået en invitationskode.
 Læs <a href="/privatliv">hvad der gemmes, og hvordan</a>, før du tilmelder
 dig.</p>
 
 <div class="cards">
-<section class="card">
-  <h2>Tilmeld</h2>
-  {% if signup_error %}<p class="error">{{ signup_error }}</p>{% endif %}
+<section class="card" aria-labelledby="tilmeld">
+  <h2 id="tilmeld">Tilmeld</h2>
+  {% if signup_error %}<p class="error" role="alert">{{ signup_error }}</p>{% endif %}
   <form method="post" action="/signup">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
     <label>Din mailadresse
-      <input type="email" name="email" required maxlength="254" autocomplete="email"></label>
+      <input type="email" name="email" required maxlength="254" autocomplete="email"
+             autocapitalize="none" spellcheck="false"></label>
     <label>Invitationskode
-      <input type="text" name="invite" required maxlength="200" autocomplete="off"></label>
+      <input type="text" name="invite" required maxlength="200" autocomplete="off"
+             autocapitalize="none" autocorrect="off" spellcheck="false"
+             enterkeyhint="send"></label>
     <button type="submit">Send tilmeldingslink</button>
   </form>
 </section>
-<section class="card">
-  <h2>Log ind</h2>
-  {% if login_error %}<p class="error">{{ login_error }}</p>{% endif %}
+<section class="card" aria-labelledby="logind">
+  <h2 id="logind">Log ind</h2>
+  {% if login_error %}<p class="error" role="alert">{{ login_error }}</p>{% endif %}
   <form method="post" action="/login">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
     <label>Din mailadresse
-      <input type="email" name="email" required maxlength="254" autocomplete="email"></label>
-    <button type="submit">Send login-link</button>
+      <input type="email" name="email" required maxlength="254" autocomplete="email"
+             autocapitalize="none" spellcheck="false" enterkeyhint="send"></label>
+    <button type="submit">Send login-mail</button>
   </form>
-  <p class="muted">Der er ingen adgangskode. Du får et link på mail, som
-  virker i 15 minutter.</p>
+  <p class="hint">Der er ingen adgangskode. Du får et link og en kode på
+  mail, som virker i 15 minutter. Har du ikke en konto endnu, kommer der
+  ingen mail - brug i stedet <em>Tilmeld</em>.</p>
 </section>
 </div>
 {% endblock %}

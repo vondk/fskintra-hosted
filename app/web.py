@@ -6,21 +6,35 @@ import json
 import os
 import re
 
-from flask import (Flask, Response, abort, g, redirect, render_template,
-                   request)
+from flask import (Flask, Response, abort, g, make_response, redirect,
+                   render_template, request)
 
-from . import auth, jobs, mails, runner, security, tenants
+from . import auth, jobs, mails, runner, security, tenants, ui
 from .context import AiKeyCheckUnavailable
 from .settings import AI_MODELS, DEFAULT_SECTIONS, SECTIONS
 
 SESSION_COOKIE = '__Host-sid'
+# Tilfældig værdi der binder en engangskode til den browser/app, der bad om
+# den (se auth.new_code)
+CODE_COOKIE = '__Host-code'
+CODE_PURPOSES = ('signup_code', 'login_code')
+# Valgt farvetema. Uden cookien følger siden systemets lyse/mørke tilstand
+THEME_COOKIE = '__Host-tema'
+THEMES = ('light', 'dark')
+# Sider man kommer tilbage til efter et temaskift. Målet slås op her, så
+# /tema aldrig sender videre til en adresse fra formularen (open redirect).
+# Alle andre sider giver forsiden
+THEME_RETURN = {p: p for p in ('/', '/status', '/settings', '/privatliv',
+                               '/kode')}
+# Efter en side, der er svar på en POST, lander man på en GET-side
+THEME_RETURN_AFTER_POST = {'/settings': '/settings', '/login': '/kode',
+                           '/signup': '/kode', '/kode': '/kode'}
 USERNAME_RE = re.compile(r'^[-.a-zA-Z0-9]{1,100}$')
 AI_KEY_RE = re.compile(r'^sk-ant-[A-Za-z0-9_-]{20,300}$')
 
 MESSAGES = {
     'saved': 'Indstillingerne er gemt.',
-    'login_ok': 'Login virker. Første hentning kører om et øjeblik - '
-                'gamle beskeder markeres som set, så du kun får nye.',
+    'login_ok': 'Login virker, og indstillingerne er gemt.',
     'paused': 'Hentningen er sat på pause.',
     'resumed': 'Hentningen kører igen.',
     'queued': 'Hentningen starter inden for et minut.',
@@ -45,6 +59,7 @@ def create_public_app(ctx):
     app.config['MAX_CONTENT_LENGTH'] = 64 * 1024
     security.install(app, csrf_cookie='__Host-csrf', secure=True,
                      expected_url=ctx.settings.public_url)
+    ui.install(app)
     settings = ctx.settings
 
     def conn():
@@ -78,9 +93,17 @@ def create_public_app(ctx):
         if row is not None:
             g.tenant = tenants.get(conn(), row['tenant_id'])
 
+    def theme_next():
+        if request.method == 'GET':
+            return THEME_RETURN.get(request.path, '/')
+        return THEME_RETURN_AFTER_POST.get(request.path, '/')
+
     @app.context_processor
     def _globals():
+        theme = request.cookies.get(THEME_COOKIE)
         return {'tenant': g.get('tenant'), 'public_url': settings.public_url,
+                'theme': theme if theme in THEMES else None,
+                'theme_next': theme_next,
                 'operator_name': settings.operator_name,
                 'contact_email': settings.contact_email,
                 'retention_days': settings.cache_retention_days,
@@ -107,6 +130,26 @@ def create_public_app(ctx):
         token = auth.new_token(conn(), purpose, email, tenant_id, payload)
         return '%s/auth/%s' % (settings.public_url, token)
 
+    def send_login(email, purpose, tenant_id=None):
+        '''Login- eller tilmeldingsmail med både link og engangskode.
+        Returnerer værdien til CODE_COOKIE'''
+        url = send_link(email, purpose, tenant_id)
+        nonce, code = auth.new_code(conn(), purpose + '_code', email,
+                                    tenant_id)
+        build = mails.login if purpose == 'login' else mails.signup
+        ctx.send_mail(email, build(url, code))
+        return nonce
+
+    def check_email(nonce=None):
+        '''"Tjek din mail" med feltet til koden. Cookien sættes altid, også
+        når adressen ikke findes, så svaret ikke afslører noget'''
+        resp = make_response(render_template('check_email.html',
+                                             has_code=True))
+        resp.set_cookie(CODE_COOKIE, nonce or auth.new_nonce(),
+                        secure=True, httponly=True, samesite='Lax',
+                        path='/', max_age=auth.TOKEN_TTL['login_code'])
+        return resp
+
     def message(title, text, status=200):
         return render_template('message.html', title=title, text=text), status
 
@@ -117,12 +160,62 @@ def create_public_app(ctx):
         conn().execute('SELECT 1')
         return Response('ok', mimetype='text/plain')
 
+    # Browsere og iOS beder om ikonerne her, selv om siderne linker til dem
+    @app.get('/favicon.ico')
+    @app.get('/apple-touch-icon.png')
+    @app.get('/apple-touch-icon-precomposed.png')
+    def icon():
+        return app.send_static_file('apple-touch-icon.png')
+
     @app.get('/')
     def index():
         if g.tenant is not None:
             return redirect('/status', 302)
         return render_template('index.html',
-                               deleted=request.args.get('slettet') == '1')
+                               deleted=request.args.get('slettet') == '1',
+                               has_code=bool(request.cookies.get(
+                                   CODE_COOKIE)))
+
+    @app.get('/manifest.webmanifest')
+    def manifest():
+        '''Gør siden til en web app, der kan lægges på hjemmeskærmen'''
+        asset = app.jinja_env.globals['asset']
+        data = {
+            'id': '/',
+            'name': 'ForældreIntra til mail',
+            'short_name': 'Intra-mail',
+            'description': 'Nyt fra ForældreIntra direkte i din mail.',
+            'lang': 'da',
+            'dir': 'ltr',
+            'start_url': '/',
+            'scope': '/',
+            'display': 'standalone',
+            'background_color': '#f8f7f3',
+            'theme_color': '#ffffff',
+            'icons': [
+                {'src': asset('icon-192.png'), 'sizes': '192x192',
+                 'type': 'image/png', 'purpose': 'any'},
+                {'src': asset('icon-512.png'), 'sizes': '512x512',
+                 'type': 'image/png', 'purpose': 'any'},
+                {'src': asset('icon-maskable-512.png'), 'sizes': '512x512',
+                 'type': 'image/png', 'purpose': 'maskable'},
+            ],
+        }
+        return Response(json.dumps(data, ensure_ascii=False),
+                        mimetype='application/manifest+json')
+
+    @app.post('/tema')
+    def set_theme():
+        theme = request.form.get('theme')
+        resp = redirect(THEME_RETURN.get(request.form.get('next', ''), '/'),
+                        303)
+        if theme in THEMES:
+            resp.set_cookie(THEME_COOKIE, theme, secure=True, httponly=True,
+                            samesite='Lax', path='/', max_age=400 * 86400)
+        else:
+            resp.delete_cookie(THEME_COOKIE, path='/', secure=True,
+                               httponly=True, samesite='Lax')
+        return resp
 
     @app.get('/privatliv')
     def privacy():
@@ -144,12 +237,10 @@ def create_public_app(ctx):
                                    'invitationskode.'), 400
         existing = tenants.get_by_email(conn(), email)
         if existing is not None:
-            url = send_link(email, 'login', existing['id'])
-            ctx.send_mail(email, mails.login(url))
+            nonce = send_login(email, 'login', existing['id'])
         else:
-            url = send_link(email, 'signup')
-            ctx.send_mail(email, mails.signup(url))
-        return render_template('check_email.html')
+            nonce = send_login(email, 'signup')
+        return check_email(nonce)
 
     @app.post('/login')
     def login():
@@ -161,11 +252,63 @@ def create_public_app(ctx):
                 limited('login-email', email, 5):
             return message('For mange forsøg', 'Prøv igen om en time.', 429)
         tenant = tenants.get_by_email(conn(), email)
+        nonce = None
         if tenant is not None:
-            url = send_link(email, 'login', tenant['id'])
-            ctx.send_mail(email, mails.login(url))
+            nonce = send_login(email, 'login', tenant['id'])
         # Samme svar uanset om adressen findes (ingen enumeration)
-        return render_template('check_email.html')
+        return check_email(nonce)
+
+    # En web app på hjemmeskærmen kan genåbne den seneste adresse med GET
+    @app.get('/login')
+    @app.get('/signup')
+    def login_get():
+        return redirect('/kode' if request.cookies.get(CODE_COOKIE)
+                        else '/', 303)
+
+    @app.get('/kode')
+    def code_page():
+        if g.tenant is not None:
+            return redirect('/status', 302)
+        return render_template('check_email.html', has_code=bool(
+            request.cookies.get(CODE_COOKIE)))
+
+    @app.post('/kode')
+    def code_use():
+        if limited('code-ip', client_ip(), 30):
+            return message('For mange forsøg', 'Prøv igen om en time.', 429)
+        nonce = request.cookies.get(CODE_COOKIE, '')
+        code = re.sub(r'[^0-9]', '', request.form.get('code', ''))[:6]
+        row = auth.peek_token(conn(), nonce, CODE_PURPOSES)
+        # Højst 10 forsøg i døgnet pr. adresse, uanset hvor mange koder der
+        # bestilles. Samme svar som en forkert kode (ingen enumeration)
+        if row is not None and not limited('code-email', row['email'], 10,
+                                           86400):
+            row = auth.consume_code(conn(), nonce, code, CODE_PURPOSES)
+        else:
+            row = None
+        if row is None:
+            return render_template(
+                'check_email.html', has_code=bool(nonce),
+                code_error='Koden er forkert eller udløbet. Prøv igen, bed '
+                           'om en ny, eller brug linket i mailen.'), 400
+        resp = login_with(row)
+        resp.delete_cookie(CODE_COOKIE, path='/', secure=True,
+                           httponly=True, samesite='Lax')
+        return resp
+
+    def login_with(row):
+        '''Session ud fra et brugt signup-/login-link eller en kode'''
+        purpose, email = row['purpose'], row['email']
+        if purpose in ('signup', 'signup_code'):
+            tenant = tenants.get_by_email(conn(), email)
+            tid = tenant['id'] if tenant else tenants.create(conn(), email)
+            tenants.audit(conn(), tid, 'Logget ind')
+            return start_session(tid)
+        tenant = tenants.get(conn(), row['tenant_id'])
+        if tenant is None or tenant['email'] != email:
+            abort(404)
+        tenants.audit(conn(), tenant['id'], 'Logget ind')
+        return start_session(tenant['id'])
 
     LINK_PURPOSES = ('signup', 'login', 'approve_recipient',
                      'confirm_recipient')
@@ -189,18 +332,9 @@ def create_public_app(ctx):
         if row is None:
             return message('Linket virker ikke', 'Linket er udløbet eller '
                            'allerede brugt. Bed om et nyt fra forsiden.', 404)
-        purpose, email = row['purpose'], row['email']
-        if purpose == 'signup':
-            tenant = tenants.get_by_email(conn(), email)
-            tid = tenant['id'] if tenant else tenants.create(conn(), email)
-            tenants.audit(conn(), tid, 'Logget ind')
-            return start_session(tid)
-        if purpose == 'login':
-            tenant = tenants.get(conn(), row['tenant_id'])
-            if tenant is None or tenant['email'] != email:
-                abort(404)
-            tenants.audit(conn(), tenant['id'], 'Logget ind')
-            return start_session(tenant['id'])
+        purpose = row['purpose']
+        if purpose in ('signup', 'login'):
+            return login_with(row)
 
         tid = row['tenant_id']
         rcpt = tenants.get_recipient(conn(), tid, int(row['payload'] or 0))
@@ -471,7 +605,8 @@ def create_public_app(ctx):
     @app.post('/delete')
     @login_required
     def delete():
-        if request.form.get('confirm') != 'SLET':
+        # iPhones skriver gerne "Slet" med stort begyndelsesbogstav
+        if (request.form.get('confirm') or '').strip().upper() != 'SLET':
             return message('Ikke slettet', 'Skriv SLET i feltet for at '
                            'bekræfte.', 400)
         tid = g.tenant['id']
@@ -501,6 +636,11 @@ def create_public_app(ctx):
     @app.errorhandler(500)
     def _500(e):
         return message('Der skete en fejl', 'Prøv igen om lidt.', 500)
+
+    @app.errorhandler(405)
+    def _405(e):
+        return message('Siden findes ikke sådan', 'Gå til forsiden og prøv '
+                       'igen.', 405)
 
     @app.errorhandler(413)
     def _413(e):

@@ -13,7 +13,8 @@ moms for en klasse).
 
 ```
 Fly Machine (arn), non-root
-├─ gunicorn :8080  offentlig app (Flask, server-renderet, uden JavaScript)
+├─ gunicorn :8080  offentlig app (Flask, server-renderet, uden JavaScript,
+│                  kan installeres som web app via manifest.webmanifest)
 ├─ :9090           admin, ikke eksponeret, kun via `fly proxy`
 ├─ planlægger      hver halve time kl. 6-22, én forælder ad gangen
 │   └─ subprocess: vendor/fskintra/fskintra.py  (env kun fra en allowlist)
@@ -28,9 +29,11 @@ Fly Machine (arn), non-root
 * **Kodeord og API-nøgler** krypteres med AES-256-GCM. AAD binder dem til
   forælder og felt. Nøglen findes kun som Fly secret og sendes aldrig til
   fskintra-processen.
-* **Login** sker kun med engangslinks på mail. Der gemmes kun SHA-256 af
-  tokens og sessions. Links skal bekræftes med et klik, så mail-scannere
-  ikke kan bruge dem.
+* **Login** sker kun med engangslinks eller -koder på mail. Der gemmes kun
+  SHA-256 af tokens og sessions. Links skal bekræftes med et klik, så
+  mail-scannere ikke kan bruge dem. Koden er til web appen på
+  hjemmeskærmen (den har egne cookies) og virker kun sammen med en cookie
+  i den browser, der bad om den.
 * **Nye modtagere** skal godkendes fra login-mailen og bekræftes af
   modtageren selv.
 * **Skoler** vælges fra en allowlist (`*.m.skoleintra.dk`). Det forhindrer

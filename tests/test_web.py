@@ -1,6 +1,7 @@
 import dataclasses
 import json
 import os
+import re
 
 import pytest
 
@@ -292,6 +293,21 @@ def test_delete_removes_everything(client, ctx):
     assert client.get('/status').status_code == 302
 
 
+def test_delete_accepts_confirm_typed_on_a_phone(client, ctx):
+    # iOS skriver gerne "Slet " med stort begyndelsesbogstav og mellemrum
+    tid = signup(client, ctx)
+    assert post(client, '/delete', {'confirm': 'Slet '}).status_code == 303
+    assert tenants.get(ctx.db(), tid) is None
+
+
+def test_static_assets_are_versioned(client):
+    page = client.get('/').data.decode('utf-8')
+    for name in ('style.css', 'icon.svg', 'apple-touch-icon.png'):
+        assert '/static/%s?v=' % name in page
+    r = client.get('/apple-touch-icon.png')
+    assert r.status_code == 200 and r.mimetype == 'image/png'
+
+
 def test_logout_all_invalidates_other_sessions(client, ctx):
     signup(client, ctx, 'mor@example.net')
     other = new_client(client)
@@ -345,3 +361,175 @@ def test_invalid_emails_are_rejected(email):
 def test_check_login_has_short_timeout(ctx):
     from app import runner
     assert runner.CHECK_TIMEOUT <= 90 < ctx.settings.run_timeout_seconds
+
+
+# Web app og login med engangskode
+
+def test_web_app_manifest(client):
+    page = client.get('/').data.decode('utf-8')
+    assert '<link rel="manifest" href="/manifest.webmanifest">' in page
+    assert "manifest-src 'self'" in client.get('/').headers[
+        'Content-Security-Policy']
+    r = client.get('/manifest.webmanifest')
+    assert r.status_code == 200
+    assert r.mimetype == 'application/manifest+json'
+    m = json.loads(r.data)
+    assert m['display'] == 'standalone' and m['start_url'] == '/'
+    sizes = {(i['sizes'], i['purpose']) for i in m['icons']}
+    assert {('192x192', 'any'), ('512x512', 'any'),
+            ('512x512', 'maskable')} <= sizes
+    for icon in m['icons']:
+        assert client.get(icon['src']).mimetype == 'image/png'
+
+
+def _request_code(client, email):
+    r = post(client, '/login', {'email': email})
+    assert r.status_code == 200 and b'name="code"' in r.data
+    assert client.get_cookie('__Host-code', domain='hosted.example')
+
+
+def test_login_with_code_in_the_requesting_app(client, ctx):
+    signup(client, ctx, 'mor@example.net')
+    app = new_client(client)  # appen på hjemmeskærmen har egne cookies
+    _request_code(app, 'mor@example.net')
+    code = ctx.mailer.last_code('mor@example.net')
+    assert code[:3] + ' ' + code[3:] in ctx.mailer.html[-1]
+    r = post(app, '/kode', {'code': code[:3] + ' ' + code[3:]})
+    assert r.status_code == 303  # mellemrum som i mailen er ok
+    assert app.get('/status').status_code == 200
+    assert app.get_cookie('__Host-code', domain='hosted.example') is None
+    # Engangs
+    _request_code(new_client(client), 'mor@example.net')
+    assert post(app, '/kode', {'code': code}).status_code != 303
+
+
+def test_code_only_works_in_the_browser_that_asked(client, ctx):
+    signup(client, ctx, 'mor@example.net')
+    asker = new_client(client)
+    _request_code(asker, 'mor@example.net')
+    code = ctx.mailer.last_code('mor@example.net')
+    thief = new_client(client)
+    assert post(thief, '/kode', {'code': code}).status_code == 400
+    _request_code(thief, 'ukendt@example.net')  # egen, falsk cookie
+    assert post(thief, '/kode', {'code': code}).status_code == 400
+    assert thief.get('/status').status_code == 302
+    assert post(asker, '/kode', {'code': code}).status_code == 303
+
+
+def test_code_attempts_are_limited(client, ctx):
+    signup(client, ctx, 'mor@example.net')
+    app = new_client(client)
+    _request_code(app, 'mor@example.net')
+    code = ctx.mailer.last_code('mor@example.net')
+    wrong = '%06d' % ((int(code) + 1) % 10 ** 6)
+    for _ in range(auth.CODE_ATTEMPTS):
+        assert post(app, '/kode', {'code': wrong}).status_code == 400
+    assert post(app, '/kode', {'code': code}).status_code == 400
+    assert app.get('/status').status_code == 302
+
+
+def test_code_attempts_are_limited_per_address_per_day(client, ctx):
+    signup(client, ctx, 'mor@example.net')
+    for _ in range(2):
+        app = new_client(client)
+        _request_code(app, 'mor@example.net')
+        for _ in range(auth.CODE_ATTEMPTS):
+            post(app, '/kode', {'code': '000000'})
+    ctx.db().execute('DELETE FROM rate_limits WHERE key NOT IN (SELECT key '
+                     'FROM rate_limits GROUP BY key HAVING COUNT(*) = 10)')
+    app = new_client(client)
+    _request_code(app, 'mor@example.net')
+    code = ctx.mailer.last_code('mor@example.net')
+    assert post(app, '/kode', {'code': code}).status_code == 400
+
+
+def test_signup_with_code_creates_account(client, ctx):
+    r = post(client, '/signup', {'email': 'ny@example.net', 'invite': INVITE})
+    assert r.status_code == 200 and b'name="code"' in r.data
+    r = post(client, '/kode', {'code': ctx.mailer.last_code('ny@example.net')})
+    assert r.status_code == 303 and r.headers['Location'].endswith(
+        '/settings')
+    assert tenants.get_by_email(ctx.db(), 'ny@example.net') is not None
+
+
+def test_code_page_reveals_nothing_about_unknown_addresses(client, ctx):
+    signup(new_client(client), ctx, 'kendt@example.net')
+    a, b = new_client(client), new_client(client)
+    ra = post(a, '/login', {'email': 'ukendt@example.net'})
+    rb = post(b, '/login', {'email': 'kendt@example.net'})
+    assert _without_csrf(ra.data) == _without_csrf(rb.data)
+    assert a.get_cookie('__Host-code', domain='hosted.example')
+    assert b.get_cookie('__Host-code', domain='hosted.example')
+    wrong = '%06d' % ((int(ctx.mailer.last_code()) + 1) % 10 ** 6)
+    fa, fb = post(a, '/kode', {'code': wrong}), post(b, '/kode',
+                                                     {'code': wrong})
+    assert fa.status_code == fb.status_code == 400
+    assert _without_csrf(fa.data) == _without_csrf(fb.data)
+
+
+def _without_csrf(html):
+    return re.sub(rb'name="csrf" value="[^"]+"', b'', html)
+
+
+def test_reopened_web_app_finds_the_code_form(client, ctx):
+    assert client.get('/login').headers['Location'].endswith('/')
+    post(client, '/login', {'email': 'a@example.net'})
+    assert client.get('/login').headers['Location'].endswith('/kode')
+    assert b'name="code"' in client.get('/kode').data
+    assert b'href="/kode"' in client.get('/').data
+
+
+# Farvetema
+
+def _theme(client):
+    c = client.get_cookie('__Host-tema', domain='hosted.example')
+    return c.value if c else None
+
+
+def test_theme_follows_system_by_default(client):
+    page = client.get('/').data.decode('utf-8')
+    assert '<html lang="da">' in page
+    assert '<meta name="color-scheme" content="light dark">' in page
+    assert 'media="(prefers-color-scheme: dark)"' in page
+    assert 'value="system" aria-pressed="true"' in page
+
+
+@pytest.mark.parametrize('theme', ['light', 'dark'])
+def test_chosen_theme_is_remembered(client, theme):
+    r = post(client, '/tema', {'theme': theme, 'next': '/privatliv'})
+    assert r.status_code == 303 and r.headers['Location'] == '/privatliv'
+    cookie = [c for c in r.headers.getlist('Set-Cookie')
+              if c.startswith('__Host-tema=')][0]
+    assert 'Secure' in cookie and 'HttpOnly' in cookie
+    page = client.get('/').data.decode('utf-8')
+    assert '<html lang="da" data-theme="%s">' % theme in page
+    assert '<meta name="color-scheme" content="%s">' % theme in page
+    assert 'value="%s" aria-pressed="true"' % theme in page
+    assert 'value="system" aria-pressed="false"' in page
+    post(client, '/tema', {'theme': 'system', 'next': '/'})
+    assert _theme(client) is None
+    assert '<html lang="da">' in client.get('/').data.decode('utf-8')
+
+
+def test_unknown_theme_means_system(client):
+    post(client, '/tema', {'theme': 'dark', 'next': '/'})
+    post(client, '/tema', {'theme': '"><script>', 'next': '/'})
+    assert _theme(client) is None
+    client.set_cookie('__Host-tema', 'blå', domain='hosted.example')
+    assert b'data-theme' not in client.get('/').data
+
+
+@pytest.mark.parametrize('nxt', ['//ond.example', 'https://ond.example',
+                                 '/\\ond.example', '/status\n', 'status',
+                                 '/status?x=1', '', '/auth/x', '/a//b'])
+def test_theme_redirect_stays_on_site(client, nxt):
+    r = post(client, '/tema', {'theme': 'dark', 'next': nxt})
+    assert r.status_code == 303 and r.headers['Location'] == '/'
+
+
+def test_theme_switch_returns_to_a_get_page_after_post(client, ctx):
+    page = post(client, '/login', {'email': 'a@example.net'}).data
+    assert b'name="next" value="/kode"' in page
+    assert b'name="next" value="/privatliv"' in client.get('/privatliv').data
+    # Sider uden for listen (fx /auth/<token>) sender tilbage til forsiden
+    assert b'name="next" value="/"' in client.get('/findes-ikke').data

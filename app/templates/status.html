@@ -2,100 +2,146 @@
 {% block title %}Status{% endblock %}
 {% block content %}
 <h1>Status</h1>
-{% if msg %}<p class="ok">{{ msg }}</p>{% endif %}
+{% if msg %}<p class="flash" role="status">{{ msg }}</p>{% endif %}
 
-{% if tenant.status == 'new' %}
-<p class="warn">Du mangler at angive dit login til ForældreIntra under
-<a href="/settings">Indstillinger</a>.</p>
-{% elif tenant.status == 'paused' %}
-<p class="warn">Hentningen er på pause. {{ pause_reason }}</p>
-{% elif tenant.needs_catchup %}
-<p class="ok">Første hentning kører snart. Eksisterende indhold markeres som
-set, og derefter får du kun nyt.</p>
-{% else %}
-<p class="ok">Hentningen kører. Vi tjekker ForældreIntra {{ run_schedule }}.</p>
-{% endif %}
+{% if tenant.status == 'new' %}{% set state = ('is-warn', 'Mangler login', 'warn') %}
+{% elif tenant.status == 'paused' and tenant.pause_reason == 'login' %}{% set state = ('is-error', 'Login afvist', 'error') %}
+{% elif tenant.status == 'paused' %}{% set state = ('is-warn', 'På pause', 'warn') %}
+{% elif tenant.needs_catchup %}{% set state = ('is-ok', 'Klar', 'ok') %}
+{% else %}{% set state = ('is-ok', 'Aktiv', 'ok') %}{% endif %}
+<section class="card status-card {{ state[0] }}" aria-label="Hentning">
+  <p class="state"><span class="badge {{ state[2] }}">{{ state[1] }}</span>
+  <span>
+  {%- if tenant.status == 'new' -%}
+    Du mangler at angive dit login til ForældreIntra.
+  {%- elif tenant.status == 'paused' -%}
+    Hentningen er på pause. {{ pause_reason }}
+  {%- elif tenant.needs_catchup -%}
+    Første hentning kører snart. Eksisterende indhold markeres som set, og
+    derefter får du kun nyt.
+  {%- else -%}
+    Vi tjekker ForældreIntra {{ run_schedule }}.
+  {%- endif %}</span></p>
 
-<dl>
-  <dt>Konto</dt><dd>{{ tenant.email }}</dd>
-  <dt>Skole</dt><dd>{{ tenant.hostname or '-' }}</dd>
-  <dt>Børn</dt><dd>{{ children|join(', ') if children else '-' }}</dd>
-  <dt>Seneste kørsel</dt><dd>{{ tenant.last_run_at|dt }}</dd>
-</dl>
+  <dl class="facts">
+    <dt>Konto</dt><dd>{{ tenant.email }}</dd>
+    <dt>Skole</dt><dd>{{ tenant.hostname or '-' }}</dd>
+    <dt>Børn</dt><dd>{{ children|join(', ') if children else '-' }}</dd>
+    <dt>Seneste kørsel</dt><dd>{{ tenant.last_run_at|dt }}</dd>
+  </dl>
 
-<div class="buttons">
-  {% if tenant.status == 'active' %}
-  <form method="post" action="/run-now" class="inline">
-    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-    <button type="submit">Hent nu</button></form>
-  <form method="post" action="/pause" class="inline">
-    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-    <button type="submit" class="secondary">Sæt på pause</button></form>
-  {% elif tenant.status == 'paused' and tenant.pause_reason == 'user' %}
-  <form method="post" action="/resume" class="inline">
-    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-    <button type="submit">Genoptag</button></form>
-  {% endif %}
-</div>
+  <div class="buttons">
+    {% if tenant.status == 'new' or tenant.pause_reason == 'login' %}
+    <a class="button" href="/settings">{{ 'Angiv login' if tenant.status == 'new' else 'Opdatér login' }}</a>
+    {% elif tenant.status == 'active' %}
+    <form method="post" action="/run-now">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button type="submit">Hent nu</button></form>
+    <form method="post" action="/pause">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button type="submit" class="secondary">Sæt på pause</button></form>
+    {% elif tenant.status == 'paused' and tenant.pause_reason == 'user' %}
+    <form method="post" action="/resume">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button type="submit">Genoptag</button></form>
+    {% endif %}
+    {# En web app har ingen genindlæs-knap #}
+    <a class="button secondary app-only" href="/status">Opdatér</a>
+  </div>
+</section>
 
-<h2>Modtagere</h2>
-<table>
-  <tr><th>Adresse</th><th>Status</th><th></th></tr>
+<h2 id="modtagere">Modtagere</h2>
+<ul class="rows recipients" aria-labelledby="modtagere">
   {% for r in recipients %}
-  <tr>
-    <td>{{ r.email }}</td>
-    <td>{% if r.confirmed_at %}Aktiv{% elif r.approved_at %}Afventer bekræftelse fra modtageren{% else %}Afventer din godkendelse (se din mail){% endif %}</td>
-    <td>{% if r.email != tenant.email %}
-      <form method="post" action="/recipients/remove" class="inline">
-        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-        <input type="hidden" name="id" value="{{ r.id }}">
-        <button type="submit" class="link">Fjern</button></form>{% endif %}</td>
-  </tr>
+  <li>
+    <span class="grow">{{ r.email }}{% if r.email == tenant.email %} <span class="muted">(login)</span>{% endif %}</span>
+    {% if r.confirmed_at %}<span class="badge ok">Aktiv</span>
+    {% elif r.approved_at %}<span class="badge warn">Afventer modtageren</span>
+    {% else %}<span class="badge warn">Afventer din godkendelse</span>{% endif %}
+    {% if r.email != tenant.email %}
+    <form method="post" action="/recipients/remove">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="id" value="{{ r.id }}">
+      <button type="submit" class="secondary small" aria-label="Fjern {{ r.email }}">Fjern</button></form>
+    {% endif %}
+  </li>
   {% endfor %}
-</table>
+</ul>
 {% if recipients|length < max_recipients %}
 <form method="post" action="/recipients/add" class="row">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-  <input type="email" name="email" required maxlength="254" placeholder="Ny modtager">
+  <label>Tilføj modtager
+    <input type="email" name="email" required maxlength="254" autocomplete="email"
+           autocapitalize="none" spellcheck="false" enterkeyhint="send"
+           placeholder="fx far@example.dk"></label>
   <button type="submit">Tilføj</button>
 </form>
-<p class="muted">En ny modtager skal både godkendes fra din login-mail og
-bekræftes af modtageren selv.</p>
+<p class="hint">En ny modtager skal både godkendes fra din login-mail og
+bekræftes af modtageren selv. Du kan have op til {{ max_recipients }}
+modtagere.</p>
 {% endif %}
 
-<h2>Seneste kørsler</h2>
-<table>
-  <tr><th>Tid</th><th>Type</th><th>Resultat</th></tr>
-  {% for r in runs %}
-  <tr>
-    <td>{{ r.started_at|dt }}</td>
-    <td>{{ {'check': 'Login-tjek', 'catchup': 'Første hentning', 'run': 'Hentning'}[r.kind] }}</td>
-    <td>{% if r.exit_code == 0 %}OK{% elif r.exit_code == 3 %}Login afvist{% else %}Fejl ({{ r.exit_code }}){% endif %}
-      {% if r.exit_code != 0 and r.log_tail %}<details><summary>Log</summary><pre>{{ r.log_tail }}</pre></details>{% endif %}</td>
-  </tr>
-  {% else %}
-  <tr><td colspan="3">Ingen endnu.</td></tr>
+<h2 id="koersler">Seneste kørsler</h2>
+{% set kinds = {'check': 'Login-tjek', 'catchup': 'Første hentning', 'run': 'Hentning'} %}
+{% set results = {0: ('OK', 'ok'), 3: ('Login afvist', 'error'), 4: ('Fejl hos ForældreIntra', 'error'), 124: ('Tog for lang tid', 'error')} %}
+{% if runs %}
+<ul class="rows runs" aria-labelledby="koersler">
+  {% for r in runs %}{% set res = results.get(r.exit_code, ('Fejl (%s)' % r.exit_code, 'error')) %}
+  <li>
+    <span class="badge {{ res[1] }}">{{ res[0] }}</span>
+    <span class="grow">{{ kinds.get(r.kind, r.kind) }}</span>
+    <time class="meta">{{ r.started_at|dt }}</time>
+    {% if r.exit_code != 0 and r.log_tail %}
+    <details class="log-tail"><summary>Vis log</summary><pre>{{ r.log_tail }}</pre></details>
+    {% endif %}
+  </li>
   {% endfor %}
-</table>
-
-<h2>Hændelser</h2>
-<ul class="events">
-  {% for e in events %}<li>{{ e.ts|dt }} - {{ e.event }}</li>{% endfor %}
 </ul>
+{% else %}
+<p class="muted">Ingen kørsler endnu.</p>
+{% endif %}
+
+{% if events %}
+<details class="events">
+  <summary>Hændelser ({{ events|length }})</summary>
+  <ul class="log">
+    {% for e in events %}<li><time>{{ e.ts|dt }}</time>{{ e.event }}</li>{% endfor %}
+  </ul>
+</details>
+{% endif %}
 
 <h2>Dine data</h2>
-<p><a href="/export">Download alle data om dig (JSON)</a></p>
-<form method="post" action="/logout-all" class="inline">
-  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-  <button type="submit" class="secondary">Log ud på alle andre enheder</button></form>
+<div class="buttons">
+  <a class="button secondary" href="/export" download>Download dine data (JSON)</a>
+  <form method="post" action="/logout-all">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit" class="secondary">Log ud på alle andre enheder</button></form>
+</div>
 
-<details class="danger">
+<details class="install browser-only">
+  <summary>Brug som app på telefonen</summary>
+  <p>Læg siden på hjemmeskærmen, så åbner den som en app uden adresselinje.</p>
+  <ul>
+    <li><strong>iPhone:</strong> Åbn siden i Safari, tryk på Del
+    (firkanten med pilen), og vælg <em>Føj til hjemmeskærm</em>.</li>
+    <li><strong>Android:</strong> Åbn menuen (de tre prikker) i Chrome, og
+    vælg <em>Installer app</em> eller <em>Føj til startskærm</em>.</li>
+    <li><strong>PC:</strong> I Chrome og Edge kan du klikke på
+    installér-ikonet i adresselinjen.</li>
+  </ul>
+  <p class="hint">Appen har sit eget login. Første gang logger du ind med
+  koden fra login-mailen.</p>
+</details>
+
+<details class="danger-zone">
   <summary>Slet konto</summary>
   <p>Sletter dit login, dine indstillinger og alt hentet indhold med det samme.
   Sikkerhedskopier forsvinder efter højst 5 dage.</p>
   <form method="post" action="/delete" class="row">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-    <input type="text" name="confirm" required placeholder="Skriv SLET">
+    <label>Skriv SLET for at bekræfte
+      <input type="text" name="confirm" required autocomplete="off"
+             autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
     <button type="submit" class="danger">Slet min konto</button>
   </form>
 </details>

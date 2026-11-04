@@ -8,7 +8,7 @@ import os
 
 from flask import Flask, Response, abort, g, redirect, render_template, request
 
-from . import auth, mails, runner, security, tenants
+from . import auth, mails, runner, security, tenants, ui
 
 SESSION_COOKIE = 'asid'
 
@@ -22,7 +22,12 @@ def create_admin_app(ctx):
     secure = ctx.settings.admin_url.startswith('https://')
     security.install(app, csrf_cookie='acsrf', secure=secure,
                      expected_url=ctx.settings.admin_url)
+    ui.install(app)
     settings = ctx.settings
+
+    @app.context_processor
+    def _globals():
+        return {'admin_area': True}
 
     def conn():
         return ctx.db()
@@ -130,7 +135,7 @@ def create_admin_app(ctx):
         elif action == 'run':
             tenants.update(conn(), tid, run_requested=1)
         elif action == 'delete':
-            if request.form.get('confirm') != 'SLET':
+            if (request.form.get('confirm') or '').strip().upper() != 'SLET':
                 abort(400)
             lock = runner.tenant_lock(tid)
             if not lock.acquire(timeout=30):
