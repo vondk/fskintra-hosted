@@ -1,7 +1,13 @@
 {% extends "base.html" %}
+{% block title %}Tjek din mail{% endblock %}
 {% block content %}
+<div class="center">
 <h1>Tjek din mail</h1>
 <p>Hvis adressen kan bruges, har vi sendt et link. Det virker i 15 minutter
 og kan kun bruges én gang.</p>
-<p class="muted">Kommer der ikke noget, så kig i spam-mappen.</p>
+<p class="muted">Kommer der ikke noget inden for et par minutter, så kig i
+spam-mappen. Bad du om et login-link uden at have en konto, sendes der
+ingen mail - tilmeld dig i stedet.</p>
+<div class="buttons"><a class="button secondary" href="/">Til forsiden</a></div>
+</div>
 {% endblock %}

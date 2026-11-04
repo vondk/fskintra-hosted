@@ -9,7 +9,7 @@ import re
 from flask import (Flask, Response, abort, g, redirect, render_template,
                    request)
 
-from . import auth, jobs, mails, runner, security, tenants
+from . import auth, jobs, mails, runner, security, tenants, ui
 from .context import AiKeyCheckUnavailable
 from .settings import AI_MODELS, DEFAULT_SECTIONS, SECTIONS
 
@@ -19,8 +19,7 @@ AI_KEY_RE = re.compile(r'^sk-ant-[A-Za-z0-9_-]{20,300}$')
 
 MESSAGES = {
     'saved': 'Indstillingerne er gemt.',
-    'login_ok': 'Login virker. Første hentning kører om et øjeblik - '
-                'gamle beskeder markeres som set, så du kun får nye.',
+    'login_ok': 'Login virker, og indstillingerne er gemt.',
     'paused': 'Hentningen er sat på pause.',
     'resumed': 'Hentningen kører igen.',
     'queued': 'Hentningen starter inden for et minut.',
@@ -45,6 +44,7 @@ def create_public_app(ctx):
     app.config['MAX_CONTENT_LENGTH'] = 64 * 1024
     security.install(app, csrf_cookie='__Host-csrf', secure=True,
                      expected_url=ctx.settings.public_url)
+    ui.install(app)
     settings = ctx.settings
 
     def conn():
@@ -115,6 +115,13 @@ def create_public_app(ctx):
     def healthz():
         conn().execute('SELECT 1')
         return Response('ok', mimetype='text/plain')
+
+    # Browsere og iOS beder om ikonerne her, selv om siderne linker til dem
+    @app.get('/favicon.ico')
+    @app.get('/apple-touch-icon.png')
+    @app.get('/apple-touch-icon-precomposed.png')
+    def icon():
+        return app.send_static_file('apple-touch-icon.png')
 
     @app.get('/')
     def index():
@@ -250,7 +257,9 @@ def create_public_app(ctx):
             recipients=tenants.recipients(conn(), t['id']),
             runs=tenants.runs(conn(), t['id']),
             events=tenants.audit_log(conn(), t['id']),
-            max_recipients=tenants.MAX_RECIPIENTS)
+            max_recipients=tenants.MAX_RECIPIENTS,
+            run_hours=settings.run_hours,
+            run_interval=settings.run_interval_minutes)
 
     def render_settings(error=None, status=200, form=None):
         t = g.tenant
@@ -470,7 +479,8 @@ def create_public_app(ctx):
     @app.post('/delete')
     @login_required
     def delete():
-        if request.form.get('confirm') != 'SLET':
+        # iPhones skriver gerne "Slet" med stort begyndelsesbogstav
+        if (request.form.get('confirm') or '').strip().upper() != 'SLET':
             return message('Ikke slettet', 'Skriv SLET i feltet for at '
                            'bekræfte.', 400)
         tid = g.tenant['id']

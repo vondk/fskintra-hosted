@@ -291,6 +291,21 @@ def test_delete_removes_everything(client, ctx):
     assert client.get('/status').status_code == 302
 
 
+def test_delete_accepts_confirm_typed_on_a_phone(client, ctx):
+    # iOS skriver gerne "Slet " med stort begyndelsesbogstav og mellemrum
+    tid = signup(client, ctx)
+    assert post(client, '/delete', {'confirm': 'Slet '}).status_code == 303
+    assert tenants.get(ctx.db(), tid) is None
+
+
+def test_static_assets_are_versioned(client):
+    page = client.get('/').data.decode('utf-8')
+    for name in ('style.css', 'icon.svg', 'apple-touch-icon.png'):
+        assert '/static/%s?v=' % name in page
+    r = client.get('/apple-touch-icon.png')
+    assert r.status_code == 200 and r.mimetype == 'image/png'
+
+
 def test_logout_all_invalidates_other_sessions(client, ctx):
     signup(client, ctx, 'mor@example.net')
     other = new_client(client)

@@ -2,14 +2,13 @@
 {% block title %}Admin{% endblock %}
 {% block content %}
 <h1>Forældre ({{ rows|length }})</h1>
-<form method="post" action="/admin/logout" class="inline">
-  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-  <button type="submit" class="link">Log ud</button></form>
+<div class="table-scroll">
 <table>
-  <tr><th>Mail</th><th>Skole</th><th>Status</th><th>Modtagere</th><th>Seneste</th><th>Exit</th><th>Fejl i træk</th></tr>
+  <thead><tr><th scope="col">Mail</th><th scope="col">Skole</th><th scope="col">Status</th><th scope="col">Modtagere</th><th scope="col">Seneste</th><th scope="col">Exit</th><th scope="col">Fejl i træk</th></tr></thead>
+  <tbody>
   {% for row in rows %}{% set t = row.t %}
   <tr>
-    <td><a href="/admin/t/{{ t.id }}">{{ t.email }}</a></td>
+    <td class="break"><a href="/admin/t/{{ t.id }}">{{ t.email }}</a></td>
     <td>{{ t.hostname or '-' }}</td>
     <td>{{ t.status }}{% if t.pause_reason %} ({{ t.pause_reason }}){% endif %}</td>
     <td>{{ row.recipients }}</td>
@@ -17,6 +16,10 @@
     <td>{{ t.last_exit if t.last_exit is not none else '-' }}</td>
     <td>{{ t.fail_count }}</td>
   </tr>
+  {% else %}
+  <tr><td colspan="7" class="muted">Ingen forældre endnu.</td></tr>
   {% endfor %}
+  </tbody>
 </table>
+</div>
 {% endblock %}

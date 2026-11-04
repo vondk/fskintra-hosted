@@ -4,26 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="same-origin">
-<title>{% block title %}ForældreIntra til mail{% endblock %}</title>
-<link rel="stylesheet" href="/static/style.css">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1f23" media="(prefers-color-scheme: dark)">
+<meta name="format-detection" content="telephone=no">
+<title>{% block title %}{% endblock %}{% if self.title() %} · {% endif %}ForældreIntra til mail</title>
+<link rel="stylesheet" href="{{ asset('style.css') }}">
+<link rel="icon" href="{{ asset('icon.svg') }}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
 </head>
 <body>
-<header>
-  <a class="brand" href="/">ForældreIntra til mail</a>
-  {% if tenant %}
-  <nav>
-    <a href="/status">Status</a>
-    <a href="/settings">Indstillinger</a>
-    <form method="post" action="/logout" class="inline">
-      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-      <button type="submit" class="link">Log ud</button>
-    </form>
-  </nav>
-  {% endif %}
+{% set path = request.path %}
+<header class="site-header">
+  <div class="inner">
+    <a class="brand" href="/"><img src="{{ asset('icon.svg') }}" alt="" width="26" height="26">ForældreIntra til mail</a>
+    {% if tenant %}
+    <nav class="site-nav" aria-label="Menu">
+      <a href="/status"{% if path == '/status' %} aria-current="page"{% endif %}>Status</a>
+      <a href="/settings"{% if path == '/settings' %} aria-current="page"{% endif %}>Indstillinger</a>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button type="submit">Log ud</button>
+      </form>
+    </nav>
+    {% elif admin_area and g.admin %}
+    <nav class="site-nav" aria-label="Menu">
+      <a href="/admin"{% if path == '/admin' %} aria-current="page"{% endif %}>Forældre</a>
+      <form method="post" action="/admin/logout">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button type="submit">Log ud</button>
+      </form>
+    </nav>
+    {% endif %}
+  </div>
 </header>
 <main>
 {% block content %}{% endblock %}
 </main>
-<footer>{% if operator_name %}Lavet af {{ operator_name }} · {% endif %}<a href="/privatliv">Privatliv og sikkerhed</a></footer>
+<footer class="site-footer">
+  <div class="inner">{% if admin_area %}Admin{% else %}{% if operator_name %}Lavet af {{ operator_name }} · {% endif %}<a href="/privatliv">Privatliv og sikkerhed</a>{% endif %}</div>
+</footer>
 </body>
 </html>

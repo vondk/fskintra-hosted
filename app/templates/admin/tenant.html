@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Admin - {{ t.email }}{% endblock %}
 {% block content %}
-<p><a href="/admin">&larr; Alle</a></p>
-<h1>{{ t.email }}</h1>
-<dl>
-  <dt>Id</dt><dd>{{ t.id }}</dd>
+<p><a href="/admin">&larr; Alle forældre</a></p>
+<h1 class="break">{{ t.email }}</h1>
+<dl class="facts">
+  <dt>Id</dt><dd><code>{{ t.id }}</code></dd>
   <dt>Status</dt><dd>{{ t.status }}{% if t.pause_reason %} ({{ t.pause_reason }}){% endif %}</dd>
   <dt>Skole</dt><dd>{{ t.hostname or '-' }} ({{ t.logintype }})</dd>
   <dt>Børn</dt><dd>{{ children|join(', ') if children else '-' }}</dd>
@@ -13,27 +13,38 @@
 </dl>
 <div class="buttons">
   {% for action, label in (('run', 'Kør nu'), ('pause', 'Pause'), ('resume', 'Genoptag')) %}
-  <form method="post" action="/admin/t/{{ t.id }}/{{ action }}" class="inline">
+  <form method="post" action="/admin/t/{{ t.id }}/{{ action }}">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
     <button type="submit" class="secondary">{{ label }}</button></form>
   {% endfor %}
 </div>
 <h2>Modtagere</h2>
-<ul>{% for r in recipients %}<li>{{ r.email }} - {% if r.confirmed_at %}aktiv{% else %}afventer{% endif %}</li>{% endfor %}</ul>
+<ul class="rows">{% for r in recipients %}
+  <li><span class="grow">{{ r.email }}</span>
+  {% if r.confirmed_at %}<span class="badge ok">aktiv</span>{% else %}<span class="badge warn">afventer</span>{% endif %}</li>
+{% endfor %}</ul>
 <h2>Kørsler</h2>
+<div class="table-scroll">
 <table>
-  <tr><th>Tid</th><th>Type</th><th>Exit</th><th>Varighed</th><th>Log</th></tr>
+  <thead><tr><th scope="col">Tid</th><th scope="col">Type</th><th scope="col">Exit</th><th scope="col">Varighed</th><th scope="col">Log</th></tr></thead>
+  <tbody>
   {% for r in runs %}
   <tr><td>{{ r.started_at|dt }}</td><td>{{ r.kind }}</td><td>{{ r.exit_code }}</td><td>{{ r.duration }}s</td>
-      <td>{% if r.log_tail %}<details><summary>vis</summary><pre>{{ r.log_tail }}</pre></details>{% endif %}</td></tr>
+      <td>{% if r.log_tail %}<details class="log-tail"><summary>vis</summary><pre>{{ r.log_tail }}</pre></details>{% endif %}</td></tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">Ingen kørsler.</td></tr>
   {% endfor %}
+  </tbody>
 </table>
+</div>
 <h2>Hændelser</h2>
-<ul class="events">{% for e in events %}<li>{{ e.ts|dt }} - {{ e.event }}</li>{% endfor %}</ul>
-<details class="danger"><summary>Slet forælder</summary>
+<ul class="log">{% for e in events %}<li><time>{{ e.ts|dt }}</time>{{ e.event }}</li>{% endfor %}</ul>
+<details class="danger-zone"><summary>Slet forælder</summary>
   <form method="post" action="/admin/t/{{ t.id }}/delete" class="row">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-    <input type="text" name="confirm" required placeholder="Skriv SLET">
+    <label>Skriv SLET for at bekræfte
+      <input type="text" name="confirm" required autocomplete="off"
+             autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
     <button type="submit" class="danger">Slet</button></form>
 </details>
 {% endblock %}
