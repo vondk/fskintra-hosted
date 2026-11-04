@@ -5,7 +5,6 @@ import hmac
 import json
 import os
 import re
-import secrets
 
 from flask import (Flask, Response, abort, g, make_response, redirect,
                    render_template, request)
@@ -15,7 +14,7 @@ from .context import AiKeyCheckUnavailable
 from .settings import AI_MODELS, DEFAULT_SECTIONS, SECTIONS
 
 SESSION_COOKIE = '__Host-sid'
-# Hemmeligheden der binder en engangskode til den browser/app, der bad om
+# Tilfældig værdi der binder en engangskode til den browser/app, der bad om
 # den (se auth.new_code)
 CODE_COOKIE = '__Host-code'
 CODE_PURPOSES = ('signup_code', 'login_code')
@@ -133,20 +132,20 @@ def create_public_app(ctx):
 
     def send_login(email, purpose, tenant_id=None):
         '''Login- eller tilmeldingsmail med både link og engangskode.
-        Returnerer hemmeligheden til CODE_COOKIE'''
+        Returnerer værdien til CODE_COOKIE'''
         url = send_link(email, purpose, tenant_id)
-        secret, code = auth.new_code(conn(), purpose + '_code', email,
-                                     tenant_id)
+        nonce, code = auth.new_code(conn(), purpose + '_code', email,
+                                    tenant_id)
         build = mails.login if purpose == 'login' else mails.signup
         ctx.send_mail(email, build(url, code))
-        return secret
+        return nonce
 
-    def check_email(secret=None):
+    def check_email(nonce=None):
         '''"Tjek din mail" med feltet til koden. Cookien sættes altid, også
         når adressen ikke findes, så svaret ikke afslører noget'''
         resp = make_response(render_template('check_email.html',
                                              has_code=True))
-        resp.set_cookie(CODE_COOKIE, secret or secrets.token_urlsafe(32),
+        resp.set_cookie(CODE_COOKIE, nonce or auth.new_nonce(),
                         secure=True, httponly=True, samesite='Lax',
                         path='/', max_age=auth.TOKEN_TTL['login_code'])
         return resp
@@ -238,10 +237,10 @@ def create_public_app(ctx):
                                    'invitationskode.'), 400
         existing = tenants.get_by_email(conn(), email)
         if existing is not None:
-            secret = send_login(email, 'login', existing['id'])
+            nonce = send_login(email, 'login', existing['id'])
         else:
-            secret = send_login(email, 'signup')
-        return check_email(secret)
+            nonce = send_login(email, 'signup')
+        return check_email(nonce)
 
     @app.post('/login')
     def login():
@@ -253,11 +252,11 @@ def create_public_app(ctx):
                 limited('login-email', email, 5):
             return message('For mange forsøg', 'Prøv igen om en time.', 429)
         tenant = tenants.get_by_email(conn(), email)
-        secret = None
+        nonce = None
         if tenant is not None:
-            secret = send_login(email, 'login', tenant['id'])
+            nonce = send_login(email, 'login', tenant['id'])
         # Samme svar uanset om adressen findes (ingen enumeration)
-        return check_email(secret)
+        return check_email(nonce)
 
     # En web app på hjemmeskærmen kan genåbne den seneste adresse med GET
     @app.get('/login')
@@ -277,19 +276,19 @@ def create_public_app(ctx):
     def code_use():
         if limited('code-ip', client_ip(), 30):
             return message('For mange forsøg', 'Prøv igen om en time.', 429)
-        secret = request.cookies.get(CODE_COOKIE, '')
+        nonce = request.cookies.get(CODE_COOKIE, '')
         code = re.sub(r'[^0-9]', '', request.form.get('code', ''))[:6]
-        row = auth.peek_token(conn(), secret, CODE_PURPOSES)
+        row = auth.peek_token(conn(), nonce, CODE_PURPOSES)
         # Højst 10 forsøg i døgnet pr. adresse, uanset hvor mange koder der
         # bestilles. Samme svar som en forkert kode (ingen enumeration)
         if row is not None and not limited('code-email', row['email'], 10,
                                            86400):
-            row = auth.consume_code(conn(), secret, code, CODE_PURPOSES)
+            row = auth.consume_code(conn(), nonce, code, CODE_PURPOSES)
         else:
             row = None
         if row is None:
             return render_template(
-                'check_email.html', has_code=bool(secret),
+                'check_email.html', has_code=bool(nonce),
                 code_error='Koden er forkert eller udløbet. Prøv igen, bed '
                            'om en ny, eller brug linket i mailen.'), 400
         resp = login_with(row)

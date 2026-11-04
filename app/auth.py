@@ -73,6 +73,12 @@ def consume_token(conn, token, purposes):
                         (h,)).fetchone()
 
 
+def new_nonce():
+    '''Tilfældig værdi til en cookie (også den falske, når adressen ikke
+    findes)'''
+    return secrets.token_urlsafe(32)
+
+
 def new_code(conn, purpose, email, tenant_id=None):
     '''Engangskode til mailen og en hemmelighed til browserens cookie.
 
@@ -81,25 +87,25 @@ def new_code(conn, purpose, email, tenant_id=None):
     virker kun sammen med cookien fra den browser, der bad om den, så en
     fremmed med mailadressen kan ikke bruge den, og databasen indeholder
     kun hashes, der kræver cookien for at kunne prøves af'''
-    secret = secrets.token_urlsafe(32)
+    nonce = new_nonce()
     code = '%06d' % secrets.randbelow(10 ** 6)
     t = now()
     conn.execute(
         'INSERT INTO tokens (hash, purpose, email, tenant_id, payload, '
         'created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        (_hash(secret), purpose, email, tenant_id,
-         _hash('%s:%s' % (secret, code)), t, t + TOKEN_TTL[purpose]))
-    return secret, code
+        (_hash(nonce), purpose, email, tenant_id,
+         _hash('%s:%s' % (nonce, code)), t, t + TOKEN_TTL[purpose]))
+    return nonce, code
 
 
-def consume_code(conn, secret, code, purposes):
+def consume_code(conn, nonce, code, purposes):
     '''Brug en engangskode. Højst CODE_ATTEMPTS forsøg pr. kode'''
     if not CODE_RE.match(code or ''):
         return None
-    row = peek_token(conn, secret, purposes)
+    row = peek_token(conn, nonce, purposes)
     if row is None:
         return None
-    h = _hash(secret)
+    h = _hash(nonce)
     # Forsøget tælles før kontrollen, så samtidige gæt ikke kan komme over
     # grænsen
     cur = conn.execute(
@@ -108,7 +114,7 @@ def consume_code(conn, secret, code, purposes):
     if cur.rowcount != 1:
         return None
     if not hmac.compare_digest(row['payload'],
-                               _hash('%s:%s' % (secret, code))):
+                               _hash('%s:%s' % (nonce, code))):
         return None
     cur = conn.execute('UPDATE tokens SET used_at = ? WHERE hash = ? AND '
                        'used_at IS NULL', (now(), h))
