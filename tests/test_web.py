@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import os
 import re
@@ -323,6 +324,17 @@ def test_session_expires_when_idle(client, ctx):
     ctx.db().execute('UPDATE sessions SET last_seen = ?',
                      (auth.now() - auth.SESSION_IDLE - 1,))
     assert client.get('/status').status_code == 302
+
+
+def test_schedule_text_follows_settings(ctx):
+    from app.web import run_schedule
+    assert run_schedule(ctx.settings) == 'hver time kl. 6-22'
+    ctx.settings = dataclasses.replace(ctx.settings, run_interval_minutes=30)
+    assert run_schedule(ctx.settings) == 'hver halve time kl. 6-22'
+
+
+def test_privacy_page_shows_schedule(client):
+    assert 'hver time kl. 6-22'.encode() in client.get('/privatliv').data
 
 
 def test_redirects_to_canonical_host(ctx):

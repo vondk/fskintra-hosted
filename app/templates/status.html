@@ -20,8 +20,7 @@
     Første hentning kører snart. Eksisterende indhold markeres som set, og
     derefter får du kun nyt.
   {%- else -%}
-    Vi tjekker ForældreIntra ca. {% if run_interval == 60 %}én gang i timen{% else %}hvert {{ run_interval }}. minut{% endif %}
-    mellem kl. {{ run_hours[0] }} og {{ run_hours[1] }}.
+    Vi tjekker ForældreIntra {{ run_schedule }}.
   {%- endif %}</span></p>
 
   <dl class="facts">

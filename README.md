@@ -16,7 +16,7 @@ Fly Machine (arn), non-root
 ├─ gunicorn :8080  offentlig app (Flask, server-renderet, uden JavaScript,
 │                  kan installeres som web app via manifest.webmanifest)
 ├─ :9090           admin, ikke eksponeret, kun via `fly proxy`
-├─ planlægger      hver time kl. 6-22, én forælder ad gangen
+├─ planlægger      hver halve time kl. 6-22, én forælder ad gangen
 │   └─ subprocess: vendor/fskintra/fskintra.py  (env kun fra en allowlist)
 ├─ /data/app.db         SQLite, hemmeligheder AES-256-GCM-krypteret
 └─ /data/tenants/<id>/  FSKINTRA_ROOT pr. forælder (0700)

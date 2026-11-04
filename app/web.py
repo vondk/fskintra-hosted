@@ -105,7 +105,8 @@ def create_public_app(ctx):
                 'theme_next': theme_next,
                 'operator_name': settings.operator_name,
                 'contact_email': settings.contact_email,
-                'retention_days': settings.cache_retention_days}
+                'retention_days': settings.cache_retention_days,
+                'run_schedule': run_schedule(settings)}
 
     def login_required(view):
         @functools.wraps(view)
@@ -383,9 +384,7 @@ def create_public_app(ctx):
             recipients=tenants.recipients(conn(), t['id']),
             runs=tenants.runs(conn(), t['id']),
             events=tenants.audit_log(conn(), t['id']),
-            max_recipients=tenants.MAX_RECIPIENTS,
-            run_hours=settings.run_hours,
-            run_interval=settings.run_interval_minutes)
+            max_recipients=tenants.MAX_RECIPIENTS)
 
     def render_settings(error=None, status=200, form=None):
         t = g.tenant
@@ -648,3 +647,12 @@ def create_public_app(ctx):
                        413)
 
     return app
+
+
+def run_schedule(settings):
+    '''Fx "hver halve time kl. 6-22" - til teksterne på siden'''
+    n = settings.run_interval_minutes
+    every = {30: 'hver halve time', 60: 'hver time'}.get(
+        n, 'hvert %d. minut' % n)
+    return '%s kl. %d-%d' % (every, settings.run_hours[0],
+                             settings.run_hours[1])
