@@ -83,7 +83,8 @@ def create_public_app(ctx):
         return {'tenant': g.get('tenant'), 'public_url': settings.public_url,
                 'operator_name': settings.operator_name,
                 'contact_email': settings.contact_email,
-                'retention_days': settings.cache_retention_days}
+                'retention_days': settings.cache_retention_days,
+                'run_schedule': run_schedule(settings)}
 
     def login_required(view):
         @functools.wraps(view)
@@ -507,3 +508,12 @@ def create_public_app(ctx):
                        413)
 
     return app
+
+
+def run_schedule(settings):
+    '''Fx "hver halve time kl. 6-22" - til teksterne på siden'''
+    n = settings.run_interval_minutes
+    every = {30: 'hver halve time', 60: 'hver time'}.get(
+        n, 'hvert %d. minut' % n)
+    return '%s kl. %d-%d' % (every, settings.run_hours[0],
+                             settings.run_hours[1])
