@@ -13,8 +13,7 @@
 <p class="ok">Første hentning kører snart. Eksisterende indhold markeres som
 set, og derefter får du kun nyt.</p>
 {% else %}
-<p class="ok">Hentningen kører. Vi tjekker ForældreIntra ca. én gang i timen
-i dagtimerne.</p>
+<p class="ok">Hentningen kører. Vi tjekker ForældreIntra {{ run_schedule }}.</p>
 {% endif %}
 
 <dl>
