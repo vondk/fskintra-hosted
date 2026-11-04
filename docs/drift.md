@@ -71,7 +71,12 @@ datacentret. Kør med en eller to andre forældre i en uge, før koden deles.
 * **Settings → Environments → `production`:** begræns til branch `main`, og
   tilføj secret `FLY_API_TOKEN` fra
   `fly tokens create deploy --app fskintra-hosted --expiry 8760h`.
-* **Branch protection på `main`:** kræv PR og grønne checks (CI, CodeQL).
+* **Beskyt `main`:** *Settings → Rules → Rulesets → New ruleset → Import a
+  ruleset*, og vælg `.github/rulesets/main.json`. Rulesettet blokerer
+  force push og sletning og kræver en PR med løste tråde. Derudover skal
+  `test`, `docker` og `analyze` være grønne, og der må ikke være CodeQL-fund
+  på high eller derover. Der kræves 0 godkendelser, fordi du ikke kan
+  godkende dine egne PR'er, og ingen kan omgå reglerne.
 * **Code security:** slå secret scanning, push protection, Dependabot
   alerts og private vulnerability reporting til.
 

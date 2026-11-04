@@ -8,6 +8,14 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Kun nye digests af python:3.12-slim-bookworm (sikkerhedsopdateringer).
+    # Et skift af Python-version kræver også ny lockfile (uv pip compile
+    # --python-version) og CI's python-version - det gøres manuelt
+    ignore:
+      - dependency-name: python
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
   - package-ecosystem: github-actions
     directory: /
     schedule:
