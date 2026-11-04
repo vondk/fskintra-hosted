@@ -19,6 +19,15 @@ SESSION_COOKIE = '__Host-sid'
 # den (se auth.new_code)
 CODE_COOKIE = '__Host-code'
 CODE_PURPOSES = ('signup_code', 'login_code')
+# Valgt farvetema. Uden cookien følger siden systemets lyse/mørke tilstand
+THEME_COOKIE = '__Host-tema'
+THEMES = ('light', 'dark')
+# Kun stier på samme site - ellers kunne /tema bruges til at sende folk
+# videre til et fremmed site
+NEXT_RE = re.compile(r'/(?![/\\])[A-Za-z0-9/_-]*')
+# Hvor man lander efter et temaskift på en side, der er svar på en POST
+THEME_NEXT_AFTER_POST = {'/settings': '/settings', '/login': '/kode',
+                         '/signup': '/kode', '/kode': '/kode'}
 USERNAME_RE = re.compile(r'^[-.a-zA-Z0-9]{1,100}$')
 AI_KEY_RE = re.compile(r'^sk-ant-[A-Za-z0-9_-]{20,300}$')
 
@@ -83,9 +92,17 @@ def create_public_app(ctx):
         if row is not None:
             g.tenant = tenants.get(conn(), row['tenant_id'])
 
+    def theme_next():
+        if request.method == 'GET':
+            return request.path
+        return THEME_NEXT_AFTER_POST.get(request.path, '/')
+
     @app.context_processor
     def _globals():
+        theme = request.cookies.get(THEME_COOKIE)
         return {'tenant': g.get('tenant'), 'public_url': settings.public_url,
+                'theme': theme if theme in THEMES else None,
+                'theme_next': theme_next,
                 'operator_name': settings.operator_name,
                 'contact_email': settings.contact_email,
                 'retention_days': settings.cache_retention_days}
@@ -184,6 +201,19 @@ def create_public_app(ctx):
         }
         return Response(json.dumps(data, ensure_ascii=False),
                         mimetype='application/manifest+json')
+
+    @app.post('/tema')
+    def set_theme():
+        theme = request.form.get('theme')
+        nxt = request.form.get('next', '/')
+        resp = redirect(nxt if NEXT_RE.fullmatch(nxt) else '/', 303)
+        if theme in THEMES:
+            resp.set_cookie(THEME_COOKIE, theme, secure=True, httponly=True,
+                            samesite='Lax', path='/', max_age=400 * 86400)
+        else:
+            resp.delete_cookie(THEME_COOKIE, path='/', secure=True,
+                               httponly=True, samesite='Lax')
+        return resp
 
     @app.get('/privatliv')
     def privacy():

@@ -1,9 +1,11 @@
 /* ForældreIntra til mail. Ingen JavaScript (CSP), så alt interaktivt er
    ren HTML/CSS. Farverne overholder WCAG AA i både lys og mørk tilstand */
+/* Tema: følger systemet (prefers-color-scheme), medmindre brugeren har
+   valgt Lyst eller Mørkt - så sætter serveren data-theme på <html> */
 :root {
   color-scheme: light dark;
   --bg: #f8f7f3; --fg: #1d2125; --muted: #5a6570; --line: #dfe2e6;
-  --line-strong: #c4cad0; --card: #ffffff; --input: #ffffff;
+  --line-strong: #c4cad0; --input-line: #7f8891; --card: #ffffff; --input: #ffffff;
   --accent: #2563d9; --btn: #2563d9; --btn-hover: #1d4fb8; --btn-fg: #ffffff;
   --hover: #eef3fd; --focus: #2563d980;
   --danger: #c62828; --danger-hover: #a51f1f;
@@ -13,10 +15,14 @@
   --code: #f1efe9;
   --radius: 10px;
 }
+:root[data-theme="light"] { color-scheme: light; }
+/* De mørke værdier står to gange: én for systemets mørke tilstand og én for
+   et valgt "Mørkt". Ret begge steder */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #121517; --fg: #e6e8ea; --muted: #9aa5af; --line: #2c3238;
-    --line-strong: #434b53; --card: #1b1f23; --input: #121517;
+    --line-strong: #434b53; --input-line: #68717b; --card: #1b1f23; --input: #121517;
     --accent: #6aa8ff; --btn: #5ea0ff; --btn-hover: #82b6ff; --btn-fg: #0d1117;
     --hover: #1f2a3a; --focus: #6aa8ff99;
     --danger: #c93c3c; --danger-hover: #b23131;
@@ -25,6 +31,18 @@
     --err-bg: #3d1717; --err-fg: #f4b0b0; --err-line: #6e2a2a;
     --code: #0d1013;
   }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121517; --fg: #e6e8ea; --muted: #9aa5af; --line: #2c3238;
+  --line-strong: #434b53; --input-line: #68717b; --card: #1b1f23; --input: #121517;
+  --accent: #6aa8ff; --btn: #5ea0ff; --btn-hover: #82b6ff; --btn-fg: #0d1117;
+  --hover: #1f2a3a; --focus: #6aa8ff99;
+  --danger: #c93c3c; --danger-hover: #b23131;
+  --ok-bg: #173523; --ok-fg: #9fe0b5; --ok-line: #2c5a3c;
+  --warn-bg: #3a2c0c; --warn-fg: #f3d08a; --warn-line: #6b5216;
+  --err-bg: #3d1717; --err-fg: #f4b0b0; --err-line: #6e2a2a;
+  --code: #0d1013;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -61,6 +79,24 @@ a { color: var(--accent); text-underline-offset: .15em; }
   padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
 .site-footer a { color: var(--muted); }
 
+/* Tema-vælger (Lyst / Mørkt / System) */
+.site-footer .inner { display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: .75rem 1rem; }
+.theme-switch { display: inline-flex; gap: 2px; padding: 3px; margin: 0;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.theme-switch button { min-height: 36px; padding: .3rem .7rem; gap: .4rem;
+  border: 0; border-radius: 7px; background: transparent; color: var(--muted);
+  font-weight: 500; font-size: .9rem; }
+.theme-switch button:hover { background: var(--hover); color: var(--fg); }
+.theme-switch button[aria-pressed="true"] { background: var(--card); color: var(--accent);
+  font-weight: 600; box-shadow: 0 0 0 1px var(--line), 0 1px 2px #0000001a; }
+.theme-switch svg { width: 1.05rem; height: 1.05rem; flex: none; }
+@media (max-width: 30rem) {
+  .site-footer .inner { flex-direction: column; align-items: stretch; }
+  .theme-switch { width: 100%; }
+  .theme-switch button { flex: 1; min-height: 40px; }
+}
+
 /* Typografi */
 h1 { font-size: clamp(1.5rem, 1.2rem + 1.4vw, 1.9rem); line-height: 1.2;
   margin: 1.25rem 0 1rem; letter-spacing: -.01em; }
@@ -88,7 +124,7 @@ label > .hint { font-weight: 400; }
 input[type=text], input[type=email], input[type=password], select {
   display: block; width: 100%; min-height: 46px; margin-top: .35rem;
   padding: .6rem .75rem; font: inherit; font-weight: 400; color: var(--fg);
-  background: var(--input); border: 1px solid var(--line-strong);
+  background: var(--input); border: 1px solid var(--input-line);
   border-radius: 8px; appearance: none; -webkit-appearance: none; }
 select { padding-right: 2.25rem; background-repeat: no-repeat;
   background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),

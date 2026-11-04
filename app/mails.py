@@ -1,6 +1,7 @@
 """Indhold af systemmails. Hver mail sendes som både tekst og HTML (samme
 indhold), bygget af app/templates/mail/layout.{txt,html}. HTML-delen er
-autoescaped, bruger kun inline styles og ingen eksterne billeder."""
+autoescaped, bruger inline styles (plus en <style> til mørk tilstand i de
+mailprogrammer, der understøtter den) og ingen eksterne billeder."""
 
 import os
 

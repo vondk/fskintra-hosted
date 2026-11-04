@@ -141,3 +141,8 @@ def test_runner_exit_constants_match_fskintra():
     assert 'EXIT_LOGIN_FAILED = %d' % runner.EXIT_LOGIN_FAILED in src
     assert 'EXIT_SITE_ERROR = %d' % runner.EXIT_SITE_ERROR in src
     assert importlib.util  # noqa
+
+
+def test_admin_has_no_theme_switch(admin_client):
+    # /tema findes kun i den offentlige app; admin følger systemet
+    assert b'/tema' not in admin_client.get('/admin/login').data

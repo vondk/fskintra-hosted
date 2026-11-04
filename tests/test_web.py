@@ -465,3 +465,57 @@ def test_reopened_web_app_finds_the_code_form(client, ctx):
     assert client.get('/login').headers['Location'].endswith('/kode')
     assert b'name="code"' in client.get('/kode').data
     assert b'href="/kode"' in client.get('/').data
+
+
+# Farvetema
+
+def _theme(client):
+    c = client.get_cookie('__Host-tema', domain='hosted.example')
+    return c.value if c else None
+
+
+def test_theme_follows_system_by_default(client):
+    page = client.get('/').data.decode('utf-8')
+    assert '<html lang="da">' in page
+    assert '<meta name="color-scheme" content="light dark">' in page
+    assert 'media="(prefers-color-scheme: dark)"' in page
+    assert 'value="system" aria-pressed="true"' in page
+
+
+@pytest.mark.parametrize('theme', ['light', 'dark'])
+def test_chosen_theme_is_remembered(client, theme):
+    r = post(client, '/tema', {'theme': theme, 'next': '/privatliv'})
+    assert r.status_code == 303 and r.headers['Location'] == '/privatliv'
+    cookie = [c for c in r.headers.getlist('Set-Cookie')
+              if c.startswith('__Host-tema=')][0]
+    assert 'Secure' in cookie and 'HttpOnly' in cookie
+    page = client.get('/').data.decode('utf-8')
+    assert '<html lang="da" data-theme="%s">' % theme in page
+    assert '<meta name="color-scheme" content="%s">' % theme in page
+    assert 'value="%s" aria-pressed="true"' % theme in page
+    assert 'value="system" aria-pressed="false"' in page
+    post(client, '/tema', {'theme': 'system', 'next': '/'})
+    assert _theme(client) is None
+    assert '<html lang="da">' in client.get('/').data.decode('utf-8')
+
+
+def test_unknown_theme_means_system(client):
+    post(client, '/tema', {'theme': 'dark', 'next': '/'})
+    post(client, '/tema', {'theme': '"><script>', 'next': '/'})
+    assert _theme(client) is None
+    client.set_cookie('__Host-tema', 'blå', domain='hosted.example')
+    assert b'data-theme' not in client.get('/').data
+
+
+@pytest.mark.parametrize('nxt', ['//ond.example', 'https://ond.example',
+                                 '/\\ond.example', '/status\n', 'status',
+                                 '/status?x=1', ''])
+def test_theme_redirect_stays_on_site(client, nxt):
+    r = post(client, '/tema', {'theme': 'dark', 'next': nxt})
+    assert r.status_code == 303 and r.headers['Location'] == '/'
+
+
+def test_theme_switch_returns_to_a_get_page_after_post(client, ctx):
+    page = post(client, '/login', {'email': 'a@example.net'}).data
+    assert b'name="next" value="/kode"' in page
+    assert b'name="next" value="/privatliv"' in client.get('/privatliv').data
