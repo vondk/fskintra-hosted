@@ -21,6 +21,7 @@ kill_timeout = 30
   SHARED_AI_MODEL = "claude-haiku-5-5"
   FSKINTRA_SMTP_PORT = "587"
   TRUST_FLY_CLIENT_IP = "1"
+  OPERATOR_NAME = "Kim von Müllen"
 
 [mounts]
   source = "data"

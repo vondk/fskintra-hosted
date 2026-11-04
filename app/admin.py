@@ -8,7 +8,7 @@ import os
 
 from flask import Flask, Response, abort, g, redirect, render_template, request
 
-from . import auth, runner, security, tenants
+from . import auth, mails, runner, security, tenants
 
 SESSION_COOKIE = 'asid'
 
@@ -60,9 +60,8 @@ def create_admin_app(ctx):
         if hmac.compare_digest(email.encode('utf-8'),
                                settings.admin_email.encode('utf-8')):
             token = auth.new_token(conn(), 'admin_login', email)
-            ctx.mailer.send(email, 'fskintra admin: log ind',
-                            'Log ind (virker i 15 minutter):\n%s/admin/auth/'
-                            '%s\n' % (settings.admin_url, token))
+            ctx.send_mail(email, mails.admin_login(
+                '%s/admin/auth/%s' % (settings.admin_url, token)))
         return render_template('admin/login.html', sent=True)
 
     @app.get('/admin/auth/<token>')

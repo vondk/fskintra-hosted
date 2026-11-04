@@ -9,7 +9,7 @@ import re
 from flask import (Flask, Response, abort, g, redirect, render_template,
                    request)
 
-from . import auth, jobs, runner, security, tenants
+from . import auth, jobs, mails, runner, security, tenants
 from .context import AiKeyCheckUnavailable
 from .settings import AI_MODELS, DEFAULT_SECTIONS, SECTIONS
 
@@ -81,6 +81,7 @@ def create_public_app(ctx):
     @app.context_processor
     def _globals():
         return {'tenant': g.get('tenant'), 'public_url': settings.public_url,
+                'operator_name': settings.operator_name,
                 'contact_email': settings.contact_email,
                 'retention_days': settings.cache_retention_days}
 
@@ -143,14 +144,10 @@ def create_public_app(ctx):
         existing = tenants.get_by_email(conn(), email)
         if existing is not None:
             url = send_link(email, 'login', existing['id'])
-            ctx.mailer.send(email, 'fskintra: log ind', _login_text(url))
+            ctx.send_mail(email, mails.login(url))
         else:
             url = send_link(email, 'signup')
-            ctx.mailer.send(email, 'fskintra: bekræft din tilmelding',
-                            'Klik på linket for at oprette din konto. Linket '
-                            'virker i 15 minutter og kan kun bruges én gang.'
-                            '\n\n%s\n\nHar du ikke bedt om det, kan du blot '
-                            'slette mailen.\n' % url)
+            ctx.send_mail(email, mails.signup(url))
         return render_template('check_email.html')
 
     @app.post('/login')
@@ -165,7 +162,7 @@ def create_public_app(ctx):
         tenant = tenants.get_by_email(conn(), email)
         if tenant is not None:
             url = send_link(email, 'login', tenant['id'])
-            ctx.mailer.send(email, 'fskintra: log ind', _login_text(url))
+            ctx.send_mail(email, mails.login(url))
         # Samme svar uanset om adressen findes (ingen enumeration)
         return render_template('check_email.html')
 
@@ -213,12 +210,8 @@ def create_public_app(ctx):
             tenants.audit(conn(), tid, 'Modtager godkendt: %s' % rcpt['email'])
             url = send_link(rcpt['email'], 'confirm_recipient', tid,
                             str(rcpt['id']))
-            ctx.mailer.send(
-                rcpt['email'], 'fskintra: bekræft at du vil modtage mails',
-                '%s vil gerne sende mails fra ForældreIntra til denne adresse.'
-                '\n\nKlik for at bekræfte (virker i 48 timer):\n%s\n\nKender '
-                'du ikke afsenderen, kan du blot slette mailen.\n'
-                % (tenants.get(conn(), tid)['email'], url))
+            ctx.send_mail(rcpt['email'], mails.confirm_recipient(
+                url, tenants.get(conn(), tid)['email']))
             return message('Modtager godkendt', 'Vi har sendt en mail til %s,'
                            ' som skal bekræfte adressen.' % rcpt['email'])
         # confirm_recipient
@@ -414,12 +407,7 @@ def create_public_app(ctx):
         # Godkendelse via login-mailen: en overtaget session kan ikke
         # omdirigere børnenes data til en fremmed adresse
         url = send_link(g.tenant['email'], 'approve_recipient', tid, str(rid))
-        ctx.mailer.send(
-            g.tenant['email'], 'fskintra: godkend ny modtager',
-            'Der er bedt om at sende mails fra ForældreIntra til %s.\n\nKlik '
-            'for at godkende (virker i 48 timer):\n%s\n\nHar du ikke selv '
-            'bedt om det, så klik IKKE, men log ind og vælg "Log ud overalt".'
-            '\n' % (email, url))
+        ctx.send_mail(g.tenant['email'], mails.approve_recipient(url, email))
         return redirect('/status?m=recipient_pending', 303)
 
     @app.post('/recipients/remove')
@@ -519,9 +507,3 @@ def create_public_app(ctx):
                        413)
 
     return app
-
-
-def _login_text(url):
-    return ('Klik på linket for at logge ind. Linket virker i 15 minutter og '
-            'kan kun bruges én gang.\n\n%s\n\nHar du ikke bedt om det, kan du '
-            'blot slette mailen.\n' % url)

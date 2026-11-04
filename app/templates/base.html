@@ -24,6 +24,6 @@
 <main>
 {% block content %}{% endblock %}
 </main>
-<footer><a href="/privatliv">Privatliv og sikkerhed</a></footer>
+<footer>{% if operator_name %}Lavet af {{ operator_name }} · {% endif %}<a href="/privatliv">Privatliv og sikkerhed</a></footer>
 </body>
 </html>

@@ -2,7 +2,7 @@
 
 import logging
 
-from . import runner, tenants
+from . import mails, runner, tenants
 from .db import now
 
 log = logging.getLogger(__name__)
@@ -76,20 +76,13 @@ def handle_result(ctx, tenant, result):
         # Stop med det samme - gentagne forkerte logins kan låse kontoen
         fields.update(status='paused', pause_reason='login')
         tenants.audit(conn, tid, 'Sat på pause: ForældreIntra afviste login')
-        ctx.mailer.send(
-            tenant['email'], 'fskintra: ForældreIntra afviste dit login',
-            'ForældreIntra afviste brugernavn eller kodeord ved seneste '
-            'kørsel, så vi har sat hentningen på pause for ikke at låse din '
-            'konto.\n\nOpdatér kodeordet her:\n%s/settings\n'
-            % ctx.settings.public_url)
+        ctx.send_mail(tenant['email'], mails.login_failed(
+            ctx.settings.public_url + '/settings'))
     else:
         fields['fail_count'] = (tenant['fail_count'] or 0) + 1
         if fields['fail_count'] == ADMIN_ALERT_AFTER:
-            ctx.mailer.send(
-                ctx.settings.admin_email,
-                'fskintra: %d fejl i træk for en forælder' % ADMIN_ALERT_AFTER,
-                'Tenant %s (%s) har fejlet %d gange i træk. Seneste exit-'
-                'kode: %s.\n\nSe detaljer i admin: %s/admin/t/%s\n'
-                % (tid[:8], tenant['hostname'], ADMIN_ALERT_AFTER,
-                   result.exit_code, ctx.settings.admin_url, tid))
+            ctx.send_mail(ctx.settings.admin_email, mails.admin_alert(
+                tid[:8], tenant['hostname'], ADMIN_ALERT_AFTER,
+                result.exit_code,
+                '%s/admin/t/%s' % (ctx.settings.admin_url, tid)))
     tenants.update(conn, tid, **fields)

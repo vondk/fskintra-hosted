@@ -3,7 +3,7 @@
 import logging
 import os
 
-from . import db, tenants
+from . import db, mails, tenants
 from .crypto import Crypto
 from .mailer import Mailer
 
@@ -43,3 +43,8 @@ class Context:
 
     def db(self):
         return db.connect(self.settings.db_path)
+
+    def send_mail(self, to, mail):
+        '''Send en systemmail bygget af en funktion i app/mails.py'''
+        subject, text, html = mails.render(self.settings, mail)
+        return self.mailer.send(to, subject, text, html)
