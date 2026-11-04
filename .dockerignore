@@ -1,0 +1,11 @@
+.git
+.github
+**/__pycache__
+**/*.pyc
+*.env
+data
+tests
+docs
+vendor/fskintra/.git
+vendor/fskintra/tests
+vendor/fskintra/docs

@@ -1,0 +1,5 @@
+# Kør: uv pip compile --python-version 3.12 --generate-hashes requirements.in -o requirements.txt
+-r vendor/fskintra/requirements.txt
+flask>=3.1,<4
+gunicorn>=26,<27
+cryptography>=44

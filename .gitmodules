@@ -1,0 +1,3 @@
+[submodule "vendor/fskintra"]
+	path = vendor/fskintra
+	url = https://github.com/vondk/fskintra.git

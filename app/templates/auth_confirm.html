@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+{% set labels = {
+  'signup': ('Opret konto', 'Opret konto for ' ~ email),
+  'login': ('Log ind', 'Log ind som ' ~ email),
+  'admin_login': ('Admin', 'Log ind som administrator'),
+  'approve_recipient': ('Godkend modtager', 'Godkend den nye modtager'),
+  'confirm_recipient': ('Bekræft adresse', 'Bekræft at ' ~ email ~ ' vil modtage mails'),
+} %}
+<h1>{{ labels[purpose][0] }}</h1>
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <button type="submit">{{ labels[purpose][1] }}</button>
+</form>
+{% endblock %}
