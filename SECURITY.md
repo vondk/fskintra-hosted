@@ -12,7 +12,7 @@ repo. Opret ikke et offentligt issue. Du får svar inden for et par dage.
 | Læk af database, volume eller snapshot | Kodeord og API-nøgler er krypteret med AES-256-GCM. Nøglen (`MASTER_KEY`) findes kun som Fly secret. Tokens og sessions gemmes kun som SHA-256. Volumet er krypteret at rest. |
 | SSRF via skolens adresse | Kun adresser fra `ALLOWED_SCHOOL_HOSTS`, som desuden skal matche `*.m.skoleintra.dk` |
 | Overtaget session omdirigerer mails | Nye modtagere skal godkendes fra login-mailen og bekræftes af modtageren. "Log ud overalt" findes. Login-mailen kan ikke ændres. |
-| CSRF, XSS, clickjacking | Double-submit CSRF-token og Origin-tjek. Jinja-autoescape. CSP `default-src 'none'` uden JS. `frame-ancestors 'none'`. |
+| CSRF, XSS, clickjacking | Double-submit CSRF-token (primært værn) og Origin-tjek som ekstra lag (fremmed Origin afvises, `null` afgøres af tokenet). `Referrer-Policy: same-origin`. Jinja-autoescape. CSP `default-src 'none'` uden JS. `frame-ancestors 'none'`. |
 | Brute force | Rate limits på tilmelding, login, links, login-tjek og "hent nu". Invitationskoden skal være mindst 12 tegn. |
 | Mail-scannere bruger engangslinks | GET viser kun en knap. Linket forbruges først ved POST. |
 | Én forælder påvirker en anden | Én subprocess pr. kørsel med miljø fra en allowlist, eget katalog (0700), rlimits og timeout på hele procesgruppen. SQL er altid afgrænset til sessionens forælder. |

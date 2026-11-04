@@ -29,8 +29,11 @@ def install(app, csrf_cookie, secure, expected_url):
             token = secrets.token_urlsafe(32)
         g.csrf = token
         if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+            # Ekstra lag: et konkret, fremmed Origin afvises. 'null' (fx
+            # privatlivsindstillinger eller sandboxede sider) behandles som
+            # manglende - CSRF-tokenet nedenfor er det primære værn
             origin = request.headers.get('Origin')
-            if origin is not None and origin != expected_origin:
+            if origin not in (None, 'null') and origin != expected_origin:
                 abort(400)
             sent = request.form.get('csrf', '')
             if g.csrf_new or not hmac.compare_digest(sent, token):
@@ -45,7 +48,10 @@ def install(app, csrf_cookie, secure, expected_url):
         h['Content-Security-Policy'] = CSP
         h['X-Content-Type-Options'] = 'nosniff'
         h['X-Frame-Options'] = 'DENY'
-        h['Referrer-Policy'] = 'no-referrer'
+        # same-origin: Referer (og dermed tokens i /auth/<token>) sendes
+        # aldrig til fremmede sites, men formularer får et rigtigt Origin.
+        # 'no-referrer' ville få browseren til at sende Origin: null
+        h['Referrer-Policy'] = 'same-origin'
         h['Permissions-Policy'] = ('camera=(), microphone=(), geolocation=(), '
                                    'payment=(), usb=()')
         h['Cross-Origin-Opener-Policy'] = 'same-origin'

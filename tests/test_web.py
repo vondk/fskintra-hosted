@@ -18,7 +18,7 @@ def test_security_headers_on_every_response(client, path):
     assert "frame-ancestors 'none'" in h['Content-Security-Policy']
     assert h['X-Frame-Options'] == 'DENY'
     assert h['X-Content-Type-Options'] == 'nosniff'
-    assert h['Referrer-Policy'] == 'no-referrer'
+    assert h['Referrer-Policy'] == 'same-origin'
     assert h['Strict-Transport-Security'].startswith('max-age=')
     assert h['Cache-Control'] == 'no-store'
 
@@ -36,6 +36,37 @@ def test_post_without_csrf_is_rejected(client, ctx):
     r = client.post('/signup', data={'email': 'a@example.net',
                                      'invite': INVITE})
     assert r.status_code == 400 and not ctx.mailer.sent
+
+
+def test_meta_referrer_does_not_force_origin_null(client):
+    # <meta name="referrer" content="no-referrer"> ville få browsere til at
+    # sende Origin: null på alle formularer
+    assert b'content="same-origin"' in client.get('/').data
+    assert b'no-referrer' not in client.get('/').data
+
+
+def test_origin_null_with_valid_token_is_accepted(client, ctx):
+    r = client.post('/signup', data={'email': 'a@example.net',
+                                     'invite': INVITE,
+                                     'csrf': csrf(client)},
+                    headers={'Origin': 'null'})
+    assert r.status_code == 200 and len(ctx.mailer.sent) == 1
+
+
+def test_origin_null_without_token_is_rejected(client, ctx):
+    client.get('/')
+    r = client.post('/signup', data={'email': 'a@example.net',
+                                     'invite': INVITE},
+                    headers={'Origin': 'null'})
+    assert r.status_code == 400 and not ctx.mailer.sent
+
+
+def test_same_origin_post_is_accepted(client, ctx):
+    r = client.post('/signup', data={'email': 'a@example.net',
+                                     'invite': INVITE,
+                                     'csrf': csrf(client)},
+                    headers={'Origin': PUBLIC})
+    assert r.status_code == 200 and len(ctx.mailer.sent) == 1
 
 
 def test_cross_origin_post_is_rejected(client, ctx):
