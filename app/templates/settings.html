@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Indstillinger{% endblock %}
+{% block content %}
+<h1>Indstillinger</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if msg %}<p class="ok">{{ msg }}</p>{% endif %}
+
+<form method="post" action="/settings">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+
+  <fieldset>
+    <legend>Login til ForældreIntra</legend>
+    {% set cur_host = form.hostname or tenant.hostname %}
+    <label>Skole
+      <select name="hostname" required>
+        {% for h in hosts %}
+        <option value="{{ h }}" {% if h == cur_host %}selected{% endif %}>{{ h }}</option>
+        {% endfor %}
+      </select></label>
+    {% set cur_lt = form.logintype or tenant.logintype %}
+    <label>Logintype
+      <select name="logintype">
+        <option value="alm" {% if cur_lt == 'alm' %}selected{% endif %}>Almindeligt forældrelogin</option>
+        <option value="uni" {% if cur_lt == 'uni' %}selected{% endif %}>UNI-Login</option>
+      </select></label>
+    <label>Brugernavn
+      <input type="text" name="username" required maxlength="100" autocomplete="username"
+             value="{{ form.username or tenant.username or '' }}"></label>
+    <label>Kodeord
+      <input type="password" name="password" maxlength="200" autocomplete="current-password"
+             {% if not has_password %}required{% endif %}
+             placeholder="{% if has_password %}Gemt - udfyld kun for at ændre{% endif %}"></label>
+    <p class="muted">Kodeordet gemmes krypteret og vises aldrig igen. Når du
+    gemmer, logger vi ind én gang for at tjekke det. Afvises det, gemmes
+    intet.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Hvad skal sendes</legend>
+    {% for code, label in sections %}
+    <label class="check"><input type="checkbox" name="section_{{ code }}"
+      {% if code in selected %}checked{% endif %}> {{ label }}</label>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
+    <legend>AI-resumé af ændrede ugeplaner</legend>
+    {% set cur_ai = form.ai_mode or tenant.ai_mode %}
+    {% if shared_ai %}
+    <label class="check"><input type="radio" name="ai_mode" value="shared"
+      {% if cur_ai == 'shared' %}checked{% endif %}> Ja, via tjenestens fælles nøgle (gratis for dig)</label>
+    {% endif %}
+    <label class="check"><input type="radio" name="ai_mode" value="own"
+      {% if cur_ai == 'own' %}checked{% endif %}> Ja, med min egen API-nøgle fra console.anthropic.com</label>
+    <label class="check"><input type="radio" name="ai_mode" value="off"
+      {% if cur_ai == 'off' or not cur_ai %}checked{% endif %}> Ingen AI - kun regelbaseret "Nyt siden sidst"</label>
+    <label>Egen API-nøgle
+      <input type="password" name="ai_key" maxlength="320" autocomplete="off"
+             placeholder="{% if has_ai_key %}Gemt - udfyld kun for at ændre{% else %}sk-ant-...{% endif %}"></label>
+    {% set cur_model = form.ai_model or tenant.ai_model %}
+    <label>Model (kun med egen nøgle)
+      <select name="ai_model">
+        {% for m, label in ai_models %}
+        <option value="{{ m }}" {% if m == cur_model %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select></label>
+    <label class="check"><input type="checkbox" name="ai_consent"
+      {% if tenant.ai_mode in ('shared', 'own') %}checked{% endif %}>
+      Jeg accepterer, at teksten fra ugeplaner (inkl. børnenes fornavne)
+      sendes til Anthropic for at lave resuméet. Se <a href="/privatliv">privatliv</a>.</label>
+  </fieldset>
+
+  <button type="submit">Gem</button>
+</form>
+{% endblock %}

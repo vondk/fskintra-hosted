@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Admin - {{ t.email }}{% endblock %}
+{% block content %}
+<p><a href="/admin">&larr; Alle</a></p>
+<h1>{{ t.email }}</h1>
+<dl>
+  <dt>Id</dt><dd>{{ t.id }}</dd>
+  <dt>Status</dt><dd>{{ t.status }}{% if t.pause_reason %} ({{ t.pause_reason }}){% endif %}</dd>
+  <dt>Skole</dt><dd>{{ t.hostname or '-' }} ({{ t.logintype }})</dd>
+  <dt>Børn</dt><dd>{{ children|join(', ') if children else '-' }}</dd>
+  <dt>AI</dt><dd>{{ t.ai_mode }}</dd>
+  <dt>Oprettet</dt><dd>{{ t.created_at|dt }}</dd>
+</dl>
+<div class="buttons">
+  {% for action, label in (('run', 'Kør nu'), ('pause', 'Pause'), ('resume', 'Genoptag')) %}
+  <form method="post" action="/admin/t/{{ t.id }}/{{ action }}" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit" class="secondary">{{ label }}</button></form>
+  {% endfor %}
+</div>
+<h2>Modtagere</h2>
+<ul>{% for r in recipients %}<li>{{ r.email }} - {% if r.confirmed_at %}aktiv{% else %}afventer{% endif %}</li>{% endfor %}</ul>
+<h2>Kørsler</h2>
+<table>
+  <tr><th>Tid</th><th>Type</th><th>Exit</th><th>Varighed</th><th>Log</th></tr>
+  {% for r in runs %}
+  <tr><td>{{ r.started_at|dt }}</td><td>{{ r.kind }}</td><td>{{ r.exit_code }}</td><td>{{ r.duration }}s</td>
+      <td>{% if r.log_tail %}<details><summary>vis</summary><pre>{{ r.log_tail }}</pre></details>{% endif %}</td></tr>
+  {% endfor %}
+</table>
+<h2>Hændelser</h2>
+<ul class="events">{% for e in events %}<li>{{ e.ts|dt }} - {{ e.event }}</li>{% endfor %}</ul>
+<details class="danger"><summary>Slet forælder</summary>
+  <form method="post" action="/admin/t/{{ t.id }}/delete" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="text" name="confirm" required placeholder="Skriv SLET">
+    <button type="submit" class="danger">Slet</button></form>
+</details>
+{% endblock %}

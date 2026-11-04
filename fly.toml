@@ -1,0 +1,52 @@
+# Fly.io. Ret 'app' og PUBLIC_URL til dit eget app-navn/domæne.
+# Hemmeligheder sættes med `fly secrets set` - se docs/drift.md.
+# VIGTIGT: kør med præcis ÉN maskine (volumet hører til én maskine):
+#   fly deploy --ha=false
+app = "fskintra-hosted"
+primary_region = "arn"
+kill_signal = "SIGTERM"
+kill_timeout = 30
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATA_DIR = "/data"
+  PUBLIC_URL = "https://fskintra-hosted.fly.dev"
+  ADMIN_URL = "http://localhost:9090"
+  ADMIN_PORT = "9090"
+  RUN_HOURS = "6-22"
+  RUN_INTERVAL_MINUTES = "60"
+  CACHE_RETENTION_DAYS = "30"
+  SHARED_AI_MODEL = "claude-haiku-5-5"
+  FSKINTRA_SMTP_PORT = "587"
+  TRUST_FLY_CLIENT_IP = "1"
+
+[mounts]
+  source = "data"
+  destination = "/data"
+  snapshot_retention = 5
+
+# Kun port 8080 eksponeres. Admin (9090) nås via `fly proxy 9090`.
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 20
+    hard_limit = 40
+
+  [[http_service.checks]]
+    grace_period = "20s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

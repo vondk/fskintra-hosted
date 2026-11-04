@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Dansk locale (fskintra parser danske datoer)
+        run: sudo locale-gen da_DK.UTF-8
+
+      - name: Installér afhængigheder (låst med hashes)
+        run: |
+          pip install --require-hashes --no-deps -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: flake8 --max-line-length=79 app tests
+
+      - name: Bandit (sikkerhedsscanning af koden)
+        run: bandit -q -r app
+
+      - name: pip-audit (kendte sårbarheder i afhængigheder)
+        run: pip-audit --require-hashes --disable-pip -r requirements.txt
+
+      - name: Tests
+        run: python -m pytest -q
+
+      - name: fskintra-tests (submodule)
+        working-directory: vendor/fskintra
+        run: python -m pytest -q tests
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - name: Byg image
+        run: docker build -t fskintra-hosted .
+      - name: Kører som non-root og har setpriv
+        run: |
+          docker run --rm --entrypoint sh fskintra-hosted -c \
+            'id app && command -v setpriv && locale -a | grep -i da_DK'

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Status{% endblock %}
+{% block content %}
+<h1>Status</h1>
+{% if msg %}<p class="ok">{{ msg }}</p>{% endif %}
+
+{% if tenant.status == 'new' %}
+<p class="warn">Du mangler at angive dit login til ForældreIntra under
+<a href="/settings">Indstillinger</a>.</p>
+{% elif tenant.status == 'paused' %}
+<p class="warn">Hentningen er på pause. {{ pause_reason }}</p>
+{% elif tenant.needs_catchup %}
+<p class="ok">Første hentning kører snart. Eksisterende indhold markeres som
+set, og derefter får du kun nyt.</p>
+{% else %}
+<p class="ok">Hentningen kører. Vi tjekker ForældreIntra ca. én gang i timen
+i dagtimerne.</p>
+{% endif %}
+
+<dl>
+  <dt>Konto</dt><dd>{{ tenant.email }}</dd>
+  <dt>Skole</dt><dd>{{ tenant.hostname or '-' }}</dd>
+  <dt>Børn</dt><dd>{{ children|join(', ') if children else '-' }}</dd>
+  <dt>Seneste kørsel</dt><dd>{{ tenant.last_run_at|dt }}</dd>
+</dl>
+
+<div class="buttons">
+  {% if tenant.status == 'active' %}
+  <form method="post" action="/run-now" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit">Hent nu</button></form>
+  <form method="post" action="/pause" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit" class="secondary">Sæt på pause</button></form>
+  {% elif tenant.status == 'paused' and tenant.pause_reason == 'user' %}
+  <form method="post" action="/resume" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit">Genoptag</button></form>
+  {% endif %}
+</div>
+
+<h2>Modtagere</h2>
+<table>
+  <tr><th>Adresse</th><th>Status</th><th></th></tr>
+  {% for r in recipients %}
+  <tr>
+    <td>{{ r.email }}</td>
+    <td>{% if r.confirmed_at %}Aktiv{% elif r.approved_at %}Afventer bekræftelse fra modtageren{% else %}Afventer din godkendelse (se din mail){% endif %}</td>
+    <td>{% if r.email != tenant.email %}
+      <form method="post" action="/recipients/remove" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <input type="hidden" name="id" value="{{ r.id }}">
+        <button type="submit" class="link">Fjern</button></form>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% if recipients|length < max_recipients %}
+<form method="post" action="/recipients/add" class="row">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input type="email" name="email" required maxlength="254" placeholder="Ny modtager">
+  <button type="submit">Tilføj</button>
+</form>
+<p class="muted">En ny modtager skal både godkendes fra din login-mail og
+bekræftes af modtageren selv.</p>
+{% endif %}
+
+<h2>Seneste kørsler</h2>
+<table>
+  <tr><th>Tid</th><th>Type</th><th>Resultat</th></tr>
+  {% for r in runs %}
+  <tr>
+    <td>{{ r.started_at|dt }}</td>
+    <td>{{ {'check': 'Login-tjek', 'catchup': 'Første hentning', 'run': 'Hentning'}[r.kind] }}</td>
+    <td>{% if r.exit_code == 0 %}OK{% elif r.exit_code == 3 %}Login afvist{% else %}Fejl ({{ r.exit_code }}){% endif %}
+      {% if r.exit_code != 0 and r.log_tail %}<details><summary>Log</summary><pre>{{ r.log_tail }}</pre></details>{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="3">Ingen endnu.</td></tr>
+  {% endfor %}
+</table>
+
+<h2>Hændelser</h2>
+<ul class="events">
+  {% for e in events %}<li>{{ e.ts|dt }} - {{ e.event }}</li>{% endfor %}
+</ul>
+
+<h2>Dine data</h2>
+<p><a href="/export">Download alle data om dig (JSON)</a></p>
+<form method="post" action="/logout-all" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <button type="submit" class="secondary">Log ud på alle andre enheder</button></form>
+
+<details class="danger">
+  <summary>Slet konto</summary>
+  <p>Sletter dit login, dine indstillinger og alt hentet indhold med det samme.
+  Sikkerhedskopier forsvinder efter højst 5 dage.</p>
+  <form method="post" action="/delete" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="text" name="confirm" required placeholder="Skriv SLET">
+    <button type="submit" class="danger">Slet min konto</button>
+  </form>
+</details>
+{% endblock %}

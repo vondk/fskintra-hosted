@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Privatliv og sikkerhed{% endblock %}
+{% block content %}
+<h1>Privatliv og sikkerhed</h1>
+<p>Tjenesten drives privat af en forælder i klassen. Den er ikke lavet af
+skolen eller itslearning. Kontakt: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.
+Driftsherren er dataansvarlig for de oplysninger, der står nedenfor.</p>
+
+<h2>Hvad gemmes, og hvorfor</h2>
+<table>
+  <tr><th>Oplysning</th><th>Formål</th><th>Hvordan</th></tr>
+  <tr><td>Din mailadresse og evt. ekstra modtagere</td><td>Login og levering af mails</td>
+      <td>I databasen på en krypteret disk</td></tr>
+  <tr><td>Brugernavn og kodeord til ForældreIntra</td><td>Logge ind på dine vegne</td>
+      <td>Kodeordet er krypteret med AES-256-GCM. Nøglen ligger ikke i databasen</td></tr>
+  <tr><td>Egen API-nøgle (valgfri)</td><td>AI-resuméer på din regning</td>
+      <td>Krypteret på samme måde</td></tr>
+  <tr><td>Hentede sider og billeder fra ForældreIntra</td><td>Undgå at hente det samme igen</td>
+      <td>På krypteret disk, slettes automatisk efter {{ retention_days }} dage</td></tr>
+  <tr><td>Markering af sendte mails</td><td>Så du ikke får den samme mail to gange</td>
+      <td>Kun et id. Der gemmes ingen kopi af selve mailen</td></tr>
+  <tr><td>Ugeplanernes punkter</td><td>"Nyt siden sidst" i ugeplan-mails</td>
+      <td>Slettes efter 14 dage</td></tr>
+  <tr><td>Log over de seneste 10 kørsler og 50 hændelser</td><td>Fejlfinding</td>
+      <td>Kan indeholde børnenes navne og titler på beskeder. Ingen kodeord</td></tr>
+</table>
+
+<h2>Databehandlere</h2>
+<ul>
+  <li><strong>Fly.io</strong> driver serveren i Stockholm (EU). Fly.io er et
+  amerikansk firma.</li>
+  <li><strong>Mailudbyderen</strong> sender mails til dig.</li>
+  <li><strong>Anthropic</strong> modtager kun noget, hvis du slår AI-resuméer
+  til. Det er teksten fra ugeplaner, inklusive børnenes fornavne, og den
+  behandles uden for EU. AI er slået fra, indtil du selv vælger det og
+  giver samtykke.</li>
+</ul>
+
+<h2>Sikkerhed</h2>
+<ul>
+  <li>Al trafik er krypteret (HTTPS). Mails sendes via en krypteret og
+  certifikat-tjekket forbindelse.</li>
+  <li>Der er ingen adgangskode til tjenesten, kun engangslinks på mail.
+  Kun en hash af links og sessioner gemmes.</li>
+  <li>En ny modtager skal godkendes fra din login-mail og bekræftes af
+  modtageren. Så kan en anden ikke omdirigere dine mails.</li>
+  <li>Hver forælder køres i sin egen proces og har sit eget katalog.</li>
+  <li>Bliver dit kodeord afvist, stopper hentningen med det samme, så din
+  konto hos skolen ikke bliver låst.</li>
+  <li>Kildekoden er offentlig og kan efterprøves.</li>
+</ul>
+
+<h2>Dine rettigheder</h2>
+<p>Under <em>Status</em> kan du downloade alle data om dig og slette din
+konto. Sletning sker med det samme. Daglige sikkerhedskopier forsvinder
+efter højst 5 dage. Du kan klage til Datatilsynet.</p>
+
+<h2>Forbehold</h2>
+<p>Tjenesten er uofficiel og kan holde op med at virke, hvis ForældreIntra
+ændres. Den henter højst én gang i timen i dagtimerne.</p>
+{% endblock %}
