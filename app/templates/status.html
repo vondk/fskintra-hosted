@@ -46,6 +46,8 @@
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
       <button type="submit">Genoptag</button></form>
     {% endif %}
+    {# En web app har ingen genindlæs-knap #}
+    <a class="button secondary app-only" href="/status">Opdatér</a>
   </div>
 </section>
 
@@ -116,6 +118,21 @@ modtagere.</p>
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
     <button type="submit" class="secondary">Log ud på alle andre enheder</button></form>
 </div>
+
+<details class="install browser-only">
+  <summary>Brug som app på telefonen</summary>
+  <p>Læg siden på hjemmeskærmen, så åbner den som en app uden adresselinje.</p>
+  <ul>
+    <li><strong>iPhone:</strong> Åbn siden i Safari, tryk på Del
+    (firkanten med pilen), og vælg <em>Føj til hjemmeskærm</em>.</li>
+    <li><strong>Android:</strong> Åbn menuen (de tre prikker) i Chrome, og
+    vælg <em>Installer app</em> eller <em>Føj til startskærm</em>.</li>
+    <li><strong>PC:</strong> I Chrome og Edge kan du klikke på
+    installér-ikonet i adresselinjen.</li>
+  </ul>
+  <p class="hint">Appen har sit eget login. Første gang logger du ind med
+  koden fra login-mailen.</p>
+</details>
 
 <details class="danger-zone">
   <summary>Slet konto</summary>

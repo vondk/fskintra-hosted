@@ -40,6 +40,14 @@ class FakeMailer:
                     return m.group(1)
         raise AssertionError('ingen link sendt til %r' % to)
 
+    def last_code(self, to=None):
+        for t, _s, body in reversed(self.sent):
+            if to is None or t == to:
+                m = re.search(r'koden der: (\d{3}) (\d{3})', body)
+                if m:
+                    return m.group(1) + m.group(2)
+        raise AssertionError('ingen kode sendt til %r' % to)
+
 
 @pytest.fixture
 def env(tmp_path, monkeypatch):

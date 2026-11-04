@@ -1,19 +1,25 @@
-"""Engangs-tokens (magic links), server-side sessions og rate limiting.
+"""Engangs-tokens (magic links), engangskoder, server-side sessions og rate
+limiting.
 
 Der gemmes kun SHA-256 af tokens og sessions - et læk af databasen giver
 ikke adgang. Rate limits gemmer kun en hash af IP/mail."""
 
 import hashlib
+import hmac
 import re
 import secrets
 
 from .db import now
 
 TOKEN_RE = re.compile(r'^[A-Za-z0-9_-]{40,64}$')
+CODE_RE = re.compile(r'^[0-9]{6}$')
+CODE_ATTEMPTS = 5
 
 TOKEN_TTL = {
     'signup': 15 * 60,
     'login': 15 * 60,
+    'signup_code': 15 * 60,
+    'login_code': 15 * 60,
     'admin_login': 15 * 60,
     'approve_recipient': 48 * 3600,
     'confirm_recipient': 48 * 3600,
@@ -65,6 +71,50 @@ def consume_token(conn, token, purposes):
         return None
     return conn.execute('SELECT * FROM tokens WHERE hash = ?',
                         (h,)).fetchone()
+
+
+def new_code(conn, purpose, email, tenant_id=None):
+    '''Engangskode til mailen og en hemmelighed til browserens cookie.
+
+    En app på iPhonens hjemmeskærm har sine egne cookies, så et link fra
+    Mail logger kun ind i Safari. Koden skrives i stedet ind i appen. Den
+    virker kun sammen med cookien fra den browser, der bad om den, så en
+    fremmed med mailadressen kan ikke bruge den, og databasen indeholder
+    kun hashes, der kræver cookien for at kunne prøves af'''
+    secret = secrets.token_urlsafe(32)
+    code = '%06d' % secrets.randbelow(10 ** 6)
+    t = now()
+    conn.execute(
+        'INSERT INTO tokens (hash, purpose, email, tenant_id, payload, '
+        'created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        (_hash(secret), purpose, email, tenant_id,
+         _hash('%s:%s' % (secret, code)), t, t + TOKEN_TTL[purpose]))
+    return secret, code
+
+
+def consume_code(conn, secret, code, purposes):
+    '''Brug en engangskode. Højst CODE_ATTEMPTS forsøg pr. kode'''
+    if not CODE_RE.match(code or ''):
+        return None
+    row = peek_token(conn, secret, purposes)
+    if row is None:
+        return None
+    h = _hash(secret)
+    # Forsøget tælles før kontrollen, så samtidige gæt ikke kan komme over
+    # grænsen
+    cur = conn.execute(
+        'UPDATE tokens SET attempts = attempts + 1 WHERE hash = ? AND '
+        'used_at IS NULL AND attempts < ?', (h, CODE_ATTEMPTS))
+    if cur.rowcount != 1:
+        return None
+    if not hmac.compare_digest(row['payload'],
+                               _hash('%s:%s' % (secret, code))):
+        return None
+    cur = conn.execute('UPDATE tokens SET used_at = ? WHERE hash = ? AND '
+                       'used_at IS NULL', (now(), h))
+    if cur.rowcount != 1:
+        return None
+    return row
 
 
 def create_session(conn, tenant_id=None, is_admin=False):

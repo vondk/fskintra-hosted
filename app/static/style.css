@@ -227,8 +227,27 @@ details.danger-zone[open] { padding-bottom: 1rem; }
 .center { max-width: 30rem; margin: 2rem auto; text-align: center; }
 .center .buttons { justify-content: center; }
 .center form + .hint { margin-top: 1rem; }
+.center .hint { margin-bottom: 1rem; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip-path: inset(50%); white-space: nowrap; }
+
+/* Web app (lagt på hjemmeskærmen) */
+.app-only { display: none !important; }
+@media (display-mode: standalone), (display-mode: minimal-ui) {
+  .app-only { display: inline-flex !important; }
+  .browser-only { display: none !important; }
+  .site-header { position: sticky; top: 0; z-index: 2; }
+  body { -webkit-user-select: none; user-select: none; }
+  input, textarea, pre, code, dd, .rows, .log { -webkit-user-select: text; user-select: text; }
+}
+.site-header { padding-top: env(safe-area-inset-top); }
+details.install { margin-top: 1.5rem; }
+details.install ul { padding-left: 1.2rem; }
+details.install li { margin: .35rem 0; }
+.code-form { max-width: 18rem; margin: 1.5rem auto 0; text-align: left; }
+.code-form input[name=code] { font: 600 1.6rem/1.2 ui-monospace, SFMono-Regular, Menlo,
+  Consolas, monospace; letter-spacing: .15em; text-align: center; }
+.code-form button { width: 100%; margin-top: .25rem; }
 
 /* Telefoner: primærknapper i fuld bredde */
 @media (max-width: 30rem) {

@@ -79,6 +79,10 @@ MIGRATIONS = [
     );
     CREATE INDEX rate_limits_key ON rate_limits (key, ts);
     ''',
+    # 2: engangskoder (login fra appen på hjemmeskærmen) tæller forsøg
+    '''
+    ALTER TABLE tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
+    ''',
 ]
 
 _local = threading.local()

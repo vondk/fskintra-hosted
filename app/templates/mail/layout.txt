@@ -6,6 +6,10 @@
 {% endfor %}{% if button_url %}{{ button_label }}:
 {{ button_url }}
 
+{% endif %}{% if code %}Bruger du appen på hjemmeskærmen? Skriv koden der: {{ code }}
+Koden virker kun i den app eller browser, hvor du bad om den. Del den
+aldrig med andre.
+
 {% endif %}{% for n in notes %}{{ n }}
 {% endfor %}
 --

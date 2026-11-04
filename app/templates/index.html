@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 {% if deleted %}<p class="flash" role="status">Din konto og alle dine data er slettet.</p>{% endif %}
+{% if has_code %}<p class="flash" role="status">Venter du på en kode?
+<a href="/kode">Skriv koden fra mailen her</a>.</p>{% endif %}
 <h1>Nyt fra ForældreIntra direkte i din mail</h1>
 <p class="lead">Tjenesten logger ind på ForældreIntra for dig og sender nye
 beskeder, opslag, ugeplaner, lektier og billeder som almindelige mails.
@@ -33,11 +35,11 @@ dig.</p>
     <label>Din mailadresse
       <input type="email" name="email" required maxlength="254" autocomplete="email"
              autocapitalize="none" spellcheck="false" enterkeyhint="send"></label>
-    <button type="submit">Send login-link</button>
+    <button type="submit">Send login-mail</button>
   </form>
-  <p class="hint">Der er ingen adgangskode. Du får et link på mail, som
-  virker i 15 minutter. Har du ikke en konto endnu, kommer der ingen mail -
-  brug i stedet <em>Tilmeld</em>.</p>
+  <p class="hint">Der er ingen adgangskode. Du får et link og en kode på
+  mail, som virker i 15 minutter. Har du ikke en konto endnu, kommer der
+  ingen mail - brug i stedet <em>Tilmeld</em>.</p>
 </section>
 </div>
 {% endblock %}

@@ -2,7 +2,7 @@
 <html lang="da">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="same-origin">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
@@ -12,6 +12,14 @@
 <link rel="stylesheet" href="{{ asset('style.css') }}">
 <link rel="icon" href="{{ asset('icon.svg') }}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+{% if not admin_area %}
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Intra-mail">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="application-name" content="Intra-mail">
+{% endif %}
 </head>
 <body>
 {% set path = request.path %}

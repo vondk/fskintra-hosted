@@ -22,7 +22,12 @@ def _once():
             'Har du ikke bedt om det, kan du blot slette mailen.')
 
 
-def signup(url):
+def _code(code):
+    '''"123 456" - lettere at læse og skrive af'''
+    return '%s %s' % (code[:3], code[3:]) if code else ''
+
+
+def signup(url, code=None):
     return dict(
         subject='Bekræft din tilmelding',
         preheader='Ét klik, så er du i gang.',
@@ -33,16 +38,18 @@ def signup(url):
             % SERVICE,
             'Klik på knappen for at oprette din konto. Bagefter vælger du '
             'skole og indtaster dit login til ForældreIntra.'],
-        button_label='Opret konto', button_url=url, notes=_once())
+        button_label='Opret konto', button_url=url, code=_code(code),
+        notes=_once())
 
 
-def login(url):
+def login(url, code=None):
     return dict(
         subject='Dit login-link',
         preheader='Klik for at logge ind.',
         heading='Log ind',
         paragraphs=['Klik på knappen for at logge ind på %s.' % SERVICE],
-        button_label='Log ind', button_url=url, notes=_once())
+        button_label='Log ind', button_url=url, code=_code(code),
+        notes=_once())
 
 
 def approve_recipient(url, recipient):
@@ -121,6 +128,7 @@ def render(settings, mail):
         'button_url': '',
         'button_label': '',
         'preheader': '',
+        'code': '',
     }
     data.update(mail)
     text = _env.get_template('layout.txt').render(**data)

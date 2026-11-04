@@ -10,7 +10,8 @@ from flask import abort, g, request
 from .auth import TOKEN_RE
 
 CSP = ("default-src 'none'; style-src 'self'; img-src 'self'; "
-       "form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+       "manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; "
+       "base-uri 'none'")
 
 
 def _origin(url):

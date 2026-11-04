@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 import pytest
 
@@ -348,3 +349,119 @@ def test_invalid_emails_are_rejected(email):
 def test_check_login_has_short_timeout(ctx):
     from app import runner
     assert runner.CHECK_TIMEOUT <= 90 < ctx.settings.run_timeout_seconds
+
+
+# Web app og login med engangskode
+
+def test_web_app_manifest(client):
+    page = client.get('/').data.decode('utf-8')
+    assert '<link rel="manifest" href="/manifest.webmanifest">' in page
+    assert "manifest-src 'self'" in client.get('/').headers[
+        'Content-Security-Policy']
+    r = client.get('/manifest.webmanifest')
+    assert r.status_code == 200
+    assert r.mimetype == 'application/manifest+json'
+    m = json.loads(r.data)
+    assert m['display'] == 'standalone' and m['start_url'] == '/'
+    sizes = {(i['sizes'], i['purpose']) for i in m['icons']}
+    assert {('192x192', 'any'), ('512x512', 'any'),
+            ('512x512', 'maskable')} <= sizes
+    for icon in m['icons']:
+        assert client.get(icon['src']).mimetype == 'image/png'
+
+
+def _request_code(client, email):
+    r = post(client, '/login', {'email': email})
+    assert r.status_code == 200 and b'name="code"' in r.data
+    assert client.get_cookie('__Host-code', domain='hosted.example')
+
+
+def test_login_with_code_in_the_requesting_app(client, ctx):
+    signup(client, ctx, 'mor@example.net')
+    app = new_client(client)  # appen på hjemmeskærmen har egne cookies
+    _request_code(app, 'mor@example.net')
+    code = ctx.mailer.last_code('mor@example.net')
+    assert code[:3] + ' ' + code[3:] in ctx.mailer.html[-1]
+    r = post(app, '/kode', {'code': code[:3] + ' ' + code[3:]})
+    assert r.status_code == 303  # mellemrum som i mailen er ok
+    assert app.get('/status').status_code == 200
+    assert app.get_cookie('__Host-code', domain='hosted.example') is None
+    # Engangs
+    _request_code(new_client(client), 'mor@example.net')
+    assert post(app, '/kode', {'code': code}).status_code != 303
+
+
+def test_code_only_works_in_the_browser_that_asked(client, ctx):
+    signup(client, ctx, 'mor@example.net')
+    asker = new_client(client)
+    _request_code(asker, 'mor@example.net')
+    code = ctx.mailer.last_code('mor@example.net')
+    thief = new_client(client)
+    assert post(thief, '/kode', {'code': code}).status_code == 400
+    _request_code(thief, 'ukendt@example.net')  # egen, falsk cookie
+    assert post(thief, '/kode', {'code': code}).status_code == 400
+    assert thief.get('/status').status_code == 302
+    assert post(asker, '/kode', {'code': code}).status_code == 303
+
+
+def test_code_attempts_are_limited(client, ctx):
+    signup(client, ctx, 'mor@example.net')
+    app = new_client(client)
+    _request_code(app, 'mor@example.net')
+    code = ctx.mailer.last_code('mor@example.net')
+    wrong = '%06d' % ((int(code) + 1) % 10 ** 6)
+    for _ in range(auth.CODE_ATTEMPTS):
+        assert post(app, '/kode', {'code': wrong}).status_code == 400
+    assert post(app, '/kode', {'code': code}).status_code == 400
+    assert app.get('/status').status_code == 302
+
+
+def test_code_attempts_are_limited_per_address_per_day(client, ctx):
+    signup(client, ctx, 'mor@example.net')
+    for _ in range(2):
+        app = new_client(client)
+        _request_code(app, 'mor@example.net')
+        for _ in range(auth.CODE_ATTEMPTS):
+            post(app, '/kode', {'code': '000000'})
+    ctx.db().execute('DELETE FROM rate_limits WHERE key NOT IN (SELECT key '
+                     'FROM rate_limits GROUP BY key HAVING COUNT(*) = 10)')
+    app = new_client(client)
+    _request_code(app, 'mor@example.net')
+    code = ctx.mailer.last_code('mor@example.net')
+    assert post(app, '/kode', {'code': code}).status_code == 400
+
+
+def test_signup_with_code_creates_account(client, ctx):
+    r = post(client, '/signup', {'email': 'ny@example.net', 'invite': INVITE})
+    assert r.status_code == 200 and b'name="code"' in r.data
+    r = post(client, '/kode', {'code': ctx.mailer.last_code('ny@example.net')})
+    assert r.status_code == 303 and r.headers['Location'].endswith(
+        '/settings')
+    assert tenants.get_by_email(ctx.db(), 'ny@example.net') is not None
+
+
+def test_code_page_reveals_nothing_about_unknown_addresses(client, ctx):
+    signup(new_client(client), ctx, 'kendt@example.net')
+    a, b = new_client(client), new_client(client)
+    ra = post(a, '/login', {'email': 'ukendt@example.net'})
+    rb = post(b, '/login', {'email': 'kendt@example.net'})
+    assert _without_csrf(ra.data) == _without_csrf(rb.data)
+    assert a.get_cookie('__Host-code', domain='hosted.example')
+    assert b.get_cookie('__Host-code', domain='hosted.example')
+    wrong = '%06d' % ((int(ctx.mailer.last_code()) + 1) % 10 ** 6)
+    fa, fb = post(a, '/kode', {'code': wrong}), post(b, '/kode',
+                                                     {'code': wrong})
+    assert fa.status_code == fb.status_code == 400
+    assert _without_csrf(fa.data) == _without_csrf(fb.data)
+
+
+def _without_csrf(html):
+    return re.sub(rb'name="csrf" value="[^"]+"', b'', html)
+
+
+def test_reopened_web_app_finds_the_code_form(client, ctx):
+    assert client.get('/login').headers['Location'].endswith('/')
+    post(client, '/login', {'email': 'a@example.net'})
+    assert client.get('/login').headers['Location'].endswith('/kode')
+    assert b'name="code"' in client.get('/kode').data
+    assert b'href="/kode"' in client.get('/').data
