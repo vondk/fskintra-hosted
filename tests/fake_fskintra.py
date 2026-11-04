@@ -19,7 +19,9 @@ if user == 'nede':
 if user == 'sover':
     time.sleep(60)
 if user == 'laekker':
-    sys.stderr.write('kodeord=%s\n' % os.environ['FSKINTRA_PASSWORD'])
+    # Fast markør - testen bruger den som kodeord og tjekker at den fjernes
+    # fra log-halen (fixturen læser aldrig det rigtige kodeord)
+    sys.stderr.write('fejl: LAEKKET-MARKOER-4711\n')
     sys.exit(4)
 
 if '--check-login' in sys.argv:

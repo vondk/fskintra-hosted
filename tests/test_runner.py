@@ -104,9 +104,11 @@ def test_sections_are_passed_on(ctx):
 
 def test_password_is_scrubbed_from_log(ctx):
     tid, t = _tenant(ctx, username='laekker')
-    res = runner.run(ctx.settings, tid, jobs.profile_for(ctx, t), 'run')
+    profile = jobs.profile_for(ctx, t, password='LAEKKET-MARKOER-4711')
+    res = runner.run(ctx.settings, tid, profile, 'run')
     assert res.exit_code == 4
-    assert 'Kode-123' not in res.log_tail and '[skjult]' in res.log_tail
+    assert 'LAEKKET-MARKOER-4711' not in res.log_tail
+    assert 'fejl: [skjult]' in res.log_tail
 
 
 def test_timeout_kills_the_process(ctx):
