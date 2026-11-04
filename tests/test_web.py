@@ -521,7 +521,7 @@ def test_unknown_theme_means_system(client):
 
 @pytest.mark.parametrize('nxt', ['//ond.example', 'https://ond.example',
                                  '/\\ond.example', '/status\n', 'status',
-                                 '/status?x=1', ''])
+                                 '/status?x=1', '', '/auth/x', '/a//b'])
 def test_theme_redirect_stays_on_site(client, nxt):
     r = post(client, '/tema', {'theme': 'dark', 'next': nxt})
     assert r.status_code == 303 and r.headers['Location'] == '/'
@@ -531,3 +531,5 @@ def test_theme_switch_returns_to_a_get_page_after_post(client, ctx):
     page = post(client, '/login', {'email': 'a@example.net'}).data
     assert b'name="next" value="/kode"' in page
     assert b'name="next" value="/privatliv"' in client.get('/privatliv').data
+    # Sider uden for listen (fx /auth/<token>) sender tilbage til forsiden
+    assert b'name="next" value="/"' in client.get('/findes-ikke').data

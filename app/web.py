@@ -22,12 +22,14 @@ CODE_PURPOSES = ('signup_code', 'login_code')
 # Valgt farvetema. Uden cookien følger siden systemets lyse/mørke tilstand
 THEME_COOKIE = '__Host-tema'
 THEMES = ('light', 'dark')
-# Kun stier på samme site - ellers kunne /tema bruges til at sende folk
-# videre til et fremmed site
-NEXT_RE = re.compile(r'/(?![/\\])[A-Za-z0-9/_-]*')
-# Hvor man lander efter et temaskift på en side, der er svar på en POST
-THEME_NEXT_AFTER_POST = {'/settings': '/settings', '/login': '/kode',
-                         '/signup': '/kode', '/kode': '/kode'}
+# Sider man kommer tilbage til efter et temaskift. Målet slås op her, så
+# /tema aldrig sender videre til en adresse fra formularen (open redirect).
+# Alle andre sider giver forsiden
+THEME_RETURN = {p: p for p in ('/', '/status', '/settings', '/privatliv',
+                               '/kode')}
+# Efter en side, der er svar på en POST, lander man på en GET-side
+THEME_RETURN_AFTER_POST = {'/settings': '/settings', '/login': '/kode',
+                           '/signup': '/kode', '/kode': '/kode'}
 USERNAME_RE = re.compile(r'^[-.a-zA-Z0-9]{1,100}$')
 AI_KEY_RE = re.compile(r'^sk-ant-[A-Za-z0-9_-]{20,300}$')
 
@@ -94,8 +96,8 @@ def create_public_app(ctx):
 
     def theme_next():
         if request.method == 'GET':
-            return request.path
-        return THEME_NEXT_AFTER_POST.get(request.path, '/')
+            return THEME_RETURN.get(request.path, '/')
+        return THEME_RETURN_AFTER_POST.get(request.path, '/')
 
     @app.context_processor
     def _globals():
@@ -206,8 +208,8 @@ def create_public_app(ctx):
     @app.post('/tema')
     def set_theme():
         theme = request.form.get('theme')
-        nxt = request.form.get('next', '/')
-        resp = redirect(nxt if NEXT_RE.fullmatch(nxt) else '/', 303)
+        resp = redirect(THEME_RETURN.get(request.form.get('next', ''), '/'),
+                        303)
         if theme in THEMES:
             resp.set_cookie(THEME_COOKIE, theme, secure=True, httponly=True,
                             samesite='Lax', path='/', max_age=400 * 86400)
