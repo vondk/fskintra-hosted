@@ -1,0 +1,14 @@
+{{ heading }}
+{{ '=' * heading|length }}
+
+{% for p in paragraphs %}{{ p }}
+
+{% endfor %}{% if button_url %}{{ button_label }}:
+{{ button_url }}
+
+{% endif %}{% for n in notes %}{{ n }}
+{% endfor %}
+--
+{{ service }}{% if operator %} - lavet af {{ operator }}{% endif %}
+Privat, uofficiel tjeneste for klassens forældre.
+Privatliv og sikkerhed: {{ public_url }}/privatliv

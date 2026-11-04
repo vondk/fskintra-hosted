@@ -1,4 +1,5 @@
-"""Systemmails (login-links, bekræftelser, statusbeskeder) - kun tekst.
+"""Systemmails (login-links, bekræftelser, statusbeskeder) som tekst og
+HTML (indholdet bygges i app/mails.py).
 
 Samme sikre SMTP-forbindelse som fskintra bruger: login sendes kun over
 SSL (port 465) eller STARTTLS med tjek af certifikatet."""
@@ -10,6 +11,8 @@ import ssl
 from email.message import EmailMessage
 
 log = logging.getLogger(__name__)
+
+FROM_NAME = 'ForældreIntra til mail'
 
 
 class Mailer:
@@ -40,11 +43,12 @@ class Mailer:
             server.login(s.user, s.password)
         return server
 
-    def send(self, to, subject, body):
-        '''Send en tekstmail. Returnerer False (og logger) ved fejl - en
-        systemmail må aldrig vælte en request eller en kørsel'''
+    def send(self, to, subject, body, html=None):
+        '''Send en mail (tekst + evt. HTML-alternativ). Returnerer False (og
+        logger) ved fejl - en systemmail må aldrig vælte en request eller en
+        kørsel'''
         msg = EmailMessage()
-        msg['From'] = email.utils.formataddr(('fskintra', self.smtp.sender))
+        msg['From'] = email.utils.formataddr((FROM_NAME, self.smtp.sender))
         msg['To'] = to
         msg['Subject'] = subject
         msg['Date'] = email.utils.formatdate(localtime=True)
@@ -52,6 +56,8 @@ class Mailer:
         msg['Message-ID'] = email.utils.make_msgid(domain=domain)
         msg['Auto-Submitted'] = 'auto-generated'
         msg.set_content(body)
+        if html:
+            msg.add_alternative(html, subtype='html')
         try:
             server = self._connect()
             try:

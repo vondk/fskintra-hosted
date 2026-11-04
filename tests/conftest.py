@@ -25,9 +25,11 @@ MASTER_KEY = base64.b64encode(b'k' * 32).decode()
 class FakeMailer:
     def __init__(self):
         self.sent = []
+        self.html = []
 
-    def send(self, to, subject, body):
+    def send(self, to, subject, body, html=None):
         self.sent.append((to, subject, body))
+        self.html.append(html)
         return True
 
     def last_link(self, to=None):
