@@ -41,8 +41,7 @@ fly secrets set --app fskintra-hosted \
   FSKINTRA_ANTHROPIC_API_KEY=...
 ```
 
-Valgfrit: `CONTACT_EMAIL` (vises på privatlivssiden, standard er
-`ADMIN_EMAIL`). Ret `PUBLIC_URL` i `fly.toml`, hvis du bruger eget domæne.
+Ret `PUBLIC_URL` i `fly.toml`, hvis du bruger eget domæne.
 
 ## 4. Deploy (præcis én maskine)
 

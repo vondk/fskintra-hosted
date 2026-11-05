@@ -105,7 +105,6 @@ def create_public_app(ctx):
                 'theme': theme if theme in THEMES else None,
                 'theme_next': theme_next,
                 'operator_name': settings.operator_name,
-                'contact_email': settings.contact_email,
                 'retention_days': settings.cache_retention_days,
                 'run_schedule': run_schedule(settings)}
 
