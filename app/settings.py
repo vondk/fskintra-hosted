@@ -75,7 +75,6 @@ class Settings:
     public_url: str
     admin_url: str
     admin_email: str
-    contact_email: str
     operator_name: str
     invite_code: str = field(repr=False)
     master_key: bytes = field(repr=False)
@@ -156,8 +155,6 @@ def load():
         admin_email=_required('ADMIN_EMAIL').lower(),
         # Vises i mails og på siden, fx "lavet af Kim von Müllen"
         operator_name=env.get('OPERATOR_NAME', '').strip(),
-        contact_email=(env.get('CONTACT_EMAIL', '').strip() or
-                       _required('ADMIN_EMAIL').lower()),
         invite_code=invite,
         master_key=_key('MASTER_KEY'),
         master_key_old=_key('MASTER_KEY_OLD', required=False),

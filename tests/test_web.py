@@ -337,6 +337,13 @@ def test_privacy_page_shows_schedule(client):
     assert 'hver time kl. 6-22'.encode() in client.get('/privatliv').data
 
 
+def test_privacy_page_never_shows_admin_email(client, ctx):
+    body = client.get('/privatliv').data
+    assert ctx.settings.admin_email.encode() not in body
+    assert b'mailto:' not in body
+    assert b'https://github.com/vondk/fskintra-hosted/issues' in body
+
+
 def test_redirects_to_canonical_host(ctx):
     from conftest import make_client
     c = make_client(client_app(ctx), host='fskintra-hosted.fly.dev')
