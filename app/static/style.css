@@ -134,6 +134,10 @@ select { padding-right: 2.25rem; background-repeat: no-repeat;
 input:focus, select:focus { outline: none; border-color: var(--btn);
   box-shadow: 0 0 0 3px var(--focus); }
 input::placeholder { color: var(--muted); opacity: .8; }
+/* Et link, der skal kopieres (ingen JavaScript, så det markeres i hånden) */
+/* Skriften må ikke være under 16px: så zoomer iOS ind ved fokus */
+input.copy { background: var(--code); border-color: var(--line-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 label.check { display: flex; gap: .7rem; align-items: flex-start; margin: 0;
   padding: .55rem 0; min-height: 44px; font-weight: 400; cursor: pointer; }
 label.check input { flex: none; width: 1.25rem; height: 1.25rem;
@@ -284,6 +288,27 @@ details.install li { margin: .35rem 0; }
 .code-form input[name=code] { font: 600 1.6rem/1.2 ui-monospace, SFMono-Regular, Menlo,
   Consolas, monospace; letter-spacing: .15em; text-align: center; }
 .code-form button { width: 100%; margin-top: .25rem; }
+
+/* Overblik: ét kort pr. barn, én række pr. punkt (dag til venstre) */
+.overview-child h3 { margin: 1.25rem 0 .1rem; font-size: .8rem; font-weight: 650;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+ul.items { border-top: 0; }
+ul.items > li { align-items: baseline; padding: .55rem 0; }
+ul.items > li:last-child { border-bottom: 0; padding-bottom: 0; }
+ul.items .day { flex: 0 0 4.75rem; color: var(--muted); font-size: .9rem;
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+ul.items .day.soon { color: var(--fg); font-weight: 650; }
+ul.items .grow { flex-basis: 10rem; }
+ul.items .badge { margin-left: .25rem; }
+ul.items > li > .badge { margin-left: 0; }
+details.more > summary { min-height: 32px; font-size: .9rem; }
+.fulltext { margin: .25rem 0 0; white-space: pre-line; overflow-wrap: anywhere;
+  color: var(--muted); font-size: .95rem; }
+.change + .change { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.change > :last-child { margin-bottom: 0; }
+.change-head { margin-bottom: .35rem; }
+.change-head .muted { white-space: nowrap; }
+.updated { margin-top: 1rem; }
 
 /* Telefoner: primærknapper i fuld bredde */
 @media (max-width: 30rem) {

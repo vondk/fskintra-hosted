@@ -41,6 +41,8 @@ def test_env_is_an_allowlist(ctx):
     assert env['FSKINTRA_RECIPIENT_EMAIL'] == 'mor@example.net'
     assert env['FSKINTRA_STORE_MESSAGES'] == 'marker'
     assert env['FSKINTRA_HA_TODO'] == env['FSKINTRA_HA_CALENDAR'] == 'off'
+    # Relativ sti: fskintra skriver overblikket i forælderens eget katalog
+    assert env['FSKINTRA_OVERVIEW_JSON'] == 'overblik.json'
     assert 'FSKINTRA_ANTHROPIC_API_KEY' not in env  # ai_mode off
 
 

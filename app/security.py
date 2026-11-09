@@ -64,6 +64,14 @@ def install(app, csrf_cookie, secure, expected_url):
             h['Cache-Control'] = 'no-store'
         return resp
 
+    def log_exception(exc_info):
+        # Adressen kan indeholde et token (/auth/<token> og kalenderlinket).
+        # Derfor logges rutens mønster og ikke den faktiske adresse
+        rule = request.url_rule.rule if request.url_rule else '-'
+        app.logger.error('Exception on %s [%s]', rule, request.method,
+                         exc_info=exc_info)
+
+    app.log_exception = log_exception
     app.jinja_env.globals['csrf_token'] = lambda: g.csrf
     app.jinja_env.filters['dt'] = format_ts
 

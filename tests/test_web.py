@@ -83,9 +83,11 @@ def test_cross_origin_post_is_rejected(client, ctx):
 
 
 @pytest.mark.parametrize('method,path', [
-    ('get', '/status'), ('get', '/settings'), ('get', '/export'),
+    ('get', '/overblik'), ('get', '/status'), ('get', '/settings'),
+    ('get', '/export'),
     ('post', '/delete'), ('post', '/settings'), ('post', '/run-now'),
-    ('post', '/recipients/add')])
+    ('post', '/recipients/add'), ('post', '/kalender/nyt'),
+    ('post', '/kalender/slet')])
 def test_protected_routes_require_login(client, method, path):
     if method == 'get':
         r = client.get(path)
@@ -455,10 +457,15 @@ def test_double_tapped_code_still_logs_in(client, ctx, monkeypatch):
     _request_code(app, 'mor@example.net')
     nonce = app.get_cookie('__Host-code', domain='hosted.example').value
     code = ctx.mailer.last_code('mor@example.net')
-    assert post(app, '/kode', {'code': code}).status_code == 303
-    # Første svar nåede frem: andet tryk sender bare videre
+    first = post(app, '/kode', {'code': code})
+    assert first.status_code == 303
+    assert first.headers['Location'] == '/settings'
+    # Første svar nåede frem: andet tryk sender samme sted hen
     r = post(app, '/kode', {'code': code})
-    assert r.status_code == 303 and r.headers['Location'] == '/status'
+    assert r.status_code == 303 and r.headers['Location'] == '/settings'
+    save_settings(app)
+    r = post(app, '/kode', {'code': code})
+    assert r.status_code == 303 and r.headers['Location'] == '/overblik'
     # Første svar blev droppet: samme browser (samme cookie) sender igen
     again = _browser_with_code_cookie(client, nonce)
     r = post(again, '/kode', {'code': code})
