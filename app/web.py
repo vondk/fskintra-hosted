@@ -59,7 +59,7 @@ def create_public_app(ctx):
     app.config['MAX_CONTENT_LENGTH'] = 64 * 1024
     security.install(app, csrf_cookie='__Host-csrf', secure=True,
                      expected_url=ctx.settings.public_url)
-    ui.install(app)
+    ui.install(app, ctx.settings.version)
     settings = ctx.settings
 
     def conn():
