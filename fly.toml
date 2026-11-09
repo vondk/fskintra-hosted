@@ -12,7 +12,7 @@ kill_timeout = 30
 
 [env]
   DATA_DIR = "/data"
-  PUBLIC_URL = "https://fskintra-hosted.fly.dev"
+  PUBLIC_URL = "https://kaptajn.vonm.dk"
   ADMIN_URL = "http://localhost:9090"
   ADMIN_PORT = "9090"
   RUN_HOURS = "6-22"
