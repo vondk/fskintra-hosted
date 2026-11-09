@@ -22,7 +22,7 @@ def create_admin_app(ctx):
     secure = ctx.settings.admin_url.startswith('https://')
     security.install(app, csrf_cookie='acsrf', secure=secure,
                      expected_url=ctx.settings.admin_url)
-    ui.install(app)
+    ui.install(app, ctx.settings.version)
     settings = ctx.settings
 
     @app.context_processor
@@ -65,7 +65,7 @@ def create_admin_app(ctx):
         if hmac.compare_digest(email.encode('utf-8'),
                                settings.admin_email.encode('utf-8')):
             token = auth.new_token(conn(), 'admin_login', email)
-            ctx.send_mail(email, mails.admin_login(
+            ctx.send_mail_soon(email, mails.admin_login(
                 '%s/admin/auth/%s' % (settings.admin_url, token)))
         return render_template('admin/login.html', sent=True)
 

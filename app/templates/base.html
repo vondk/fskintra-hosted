@@ -57,7 +57,7 @@
 </main>
 <footer class="site-footer">
   <div class="inner">
-    <span>{% if admin_area %}Admin{% else %}{% if operator_name %}Lavet af {{ operator_name }} · {% endif %}<a href="/privatliv">Privatliv og sikkerhed</a>{% endif %}</span>
+    <span>{% if admin_area %}Admin{% else %}{% if operator_name %}Lavet af {{ operator_name }} · {% endif %}<a href="/privatliv">Privatliv og sikkerhed</a>{% endif %}{% if app_version %} · <span class="app-version" title="Version">{{ app_version }}</span>{% endif %}</span>
     {% if not admin_area %}
     <form method="post" action="/tema" class="theme-switch" role="group" aria-label="Farvetema">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">

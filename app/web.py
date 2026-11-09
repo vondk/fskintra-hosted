@@ -72,7 +72,7 @@ def create_public_app(ctx):
     app.config['MAX_CONTENT_LENGTH'] = 64 * 1024
     security.install(app, csrf_cookie='__Host-csrf', secure=True,
                      expected_url=ctx.settings.public_url)
-    ui.install(app)
+    ui.install(app, ctx.settings.version)
     settings = ctx.settings
 
     def conn():
@@ -149,7 +149,7 @@ def create_public_app(ctx):
         nonce, code = auth.new_code(conn(), purpose + '_code', email,
                                     tenant_id)
         build = mails.login if purpose == 'login' else mails.signup
-        ctx.send_mail(email, build(url, code))
+        ctx.send_mail_soon(email, build(url, code))
         return nonce
 
     def check_email(nonce=None):
@@ -292,6 +292,9 @@ def create_public_app(ctx):
 
     @app.post('/kode')
     def code_use():
+        if g.tenant is not None:
+            # Dobbelttryk, hvor første svar nåede at logge ind
+            return redirect('/status', 303)
         if limited('code-ip', client_ip(), 30):
             return message('For mange forsøg', 'Prøv igen om en time.', 429)
         nonce = request.cookies.get(CODE_COOKIE, '')
@@ -304,6 +307,9 @@ def create_public_app(ctx):
             row = auth.consume_code(conn(), nonce, code, CODE_PURPOSES)
         else:
             row = None
+        if row is None:
+            # Dobbelttryk: samme kode fra samme browser lige efter brug
+            row = auth.repeat_code(conn(), nonce, code, CODE_PURPOSES)
         if row is None:
             return render_template(
                 'check_email.html', has_code=bool(nonce),
@@ -363,7 +369,7 @@ def create_public_app(ctx):
             tenants.audit(conn(), tid, 'Modtager godkendt: %s' % rcpt['email'])
             url = send_link(rcpt['email'], 'confirm_recipient', tid,
                             str(rcpt['id']))
-            ctx.send_mail(rcpt['email'], mails.confirm_recipient(
+            ctx.send_mail_soon(rcpt['email'], mails.confirm_recipient(
                 url, tenants.get(conn(), tid)['email']))
             return message('Modtager godkendt', 'Vi har sendt en mail til %s,'
                            ' som skal bekræfte adressen.' % rcpt['email'])
@@ -589,7 +595,8 @@ def create_public_app(ctx):
         # Godkendelse via login-mailen: en overtaget session kan ikke
         # omdirigere børnenes data til en fremmed adresse
         url = send_link(g.tenant['email'], 'approve_recipient', tid, str(rid))
-        ctx.send_mail(g.tenant['email'], mails.approve_recipient(url, email))
+        ctx.send_mail_soon(g.tenant['email'],
+                           mails.approve_recipient(url, email))
         return redirect('/status?m=recipient_pending', 303)
 
     @app.post('/recipients/remove')

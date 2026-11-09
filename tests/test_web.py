@@ -2,12 +2,15 @@ import dataclasses
 import json
 import os
 import re
+import threading
 
 import pytest
 
-from app import auth, tenants
-from conftest import (INVITE, PUBLIC, csrf, new_client, post,
-                      save_settings, signup)
+from app import auth, db, settings as settings_mod, tenants
+from app.context import Context
+from app.web import create_public_app
+from conftest import (INVITE, PUBLIC, FakeMailer, csrf, make_client,
+                      new_client, post, save_settings, signup)
 
 
 # Security headers og CSRF
@@ -145,6 +148,33 @@ def test_login_does_not_reveal_unknown_addresses(client, ctx):
     r2 = post(client, '/login', {'email': 'kendt@example.net'})
     assert r2.status_code == 200 and len(ctx.mailer.sent) == n + 1
     assert r.data == r2.data
+
+
+def test_login_answers_without_waiting_for_the_mail_server(env):
+    '''Mailen sendes i baggrunden: svaret kommer med det samme (ingen
+    ventetid at trykke igen i, og ingen svartid der afslører adressen)'''
+    release = threading.Event()
+
+    class SlowMailer(FakeMailer):
+        def send(self, *a, **kw):
+            assert release.wait(5)
+            return super().send(*a, **kw)
+
+    db.close_all()
+    ctx = Context(settings_mod.load(), mailer=SlowMailer())
+    try:
+        tenants.create(ctx.db(), 'foraelder@example.net')
+        client = make_client(create_public_app(ctx))
+        r = post(client, '/login', {'email': 'foraelder@example.net'})
+        assert r.status_code == 200 and b'name="code"' in r.data
+        assert ctx.mailer.sent == []
+        release.set()
+        ctx._mail_pool.shutdown(wait=True)
+        assert [m[0] for m in ctx.mailer.sent] == ['foraelder@example.net']
+        assert re.fullmatch(r'\d{6}', ctx.mailer.last_code())
+    finally:
+        release.set()
+        db.close_all()
 
 
 def test_signup_is_rate_limited(client, ctx):
@@ -407,9 +437,60 @@ def test_login_with_code_in_the_requesting_app(client, ctx):
     assert r.status_code == 303  # mellemrum som i mailen er ok
     assert app.get('/status').status_code == 200
     assert app.get_cookie('__Host-code', domain='hosted.example') is None
-    # Engangs
-    _request_code(new_client(client), 'mor@example.net')
-    assert post(app, '/kode', {'code': code}).status_code != 303
+    # Engangs: en anden browser med en ny kode kan ikke bruge den gamle
+    other = new_client(client)
+    _request_code(other, 'mor@example.net')
+    assert post(other, '/kode', {'code': code}).status_code == 400
+
+
+def _browser_with_code_cookie(client, nonce):
+    b = new_client(client)
+    b.set_cookie('__Host-code', nonce, domain='hosted.example')
+    return b
+
+
+def test_double_tapped_code_still_logs_in(client, ctx, monkeypatch):
+    '''Uden JavaScript sender et dobbelttryk formularen to gange, og
+    browseren viser kun det andet svar. Det må ikke blive "forkert kode"'''
+    signup(client, ctx, 'mor@example.net')
+    app = new_client(client)
+    _request_code(app, 'mor@example.net')
+    nonce = app.get_cookie('__Host-code', domain='hosted.example').value
+    code = ctx.mailer.last_code('mor@example.net')
+    assert post(app, '/kode', {'code': code}).status_code == 303
+    # Første svar nåede frem: andet tryk sender bare videre
+    r = post(app, '/kode', {'code': code})
+    assert r.status_code == 303 and r.headers['Location'] == '/status'
+    # Første svar blev droppet: samme browser (samme cookie) sender igen
+    again = _browser_with_code_cookie(client, nonce)
+    r = post(again, '/kode', {'code': code})
+    assert r.status_code == 303
+    assert again.get('/status').status_code == 200
+    # Kun den rigtige kode, kun med cookien, og kun lige efter
+    assert post(_browser_with_code_cookie(client, nonce), '/kode',
+                {'code': '%06d' % ((int(code) + 1) % 10 ** 6)}
+                ).status_code == 400
+    assert post(new_client(client), '/kode',
+                {'code': code}).status_code == 400
+    t = auth.now() + auth.CODE_REPEAT_WINDOW + 1
+    monkeypatch.setattr(auth, 'now', lambda: t)
+    assert post(_browser_with_code_cookie(client, nonce), '/kode',
+                {'code': code}).status_code == 400
+
+
+def test_repeated_code_counts_as_attempts(client, ctx):
+    signup(client, ctx, 'mor@example.net')
+    app = new_client(client)
+    _request_code(app, 'mor@example.net')
+    nonce = app.get_cookie('__Host-code', domain='hosted.example').value
+    code = ctx.mailer.last_code('mor@example.net')
+    assert post(app, '/kode', {'code': code}).status_code == 303
+    wrong = '%06d' % ((int(code) + 1) % 10 ** 6)
+    for _ in range(auth.CODE_ATTEMPTS - 1):
+        assert post(_browser_with_code_cookie(client, nonce), '/kode',
+                    {'code': wrong}).status_code == 400
+    assert post(_browser_with_code_cookie(client, nonce), '/kode',
+                {'code': code}).status_code == 400
 
 
 def test_code_only_works_in_the_browser_that_asked(client, ctx):

@@ -83,8 +83,10 @@ def env(tmp_path, monkeypatch):
 @pytest.fixture
 def ctx(env):
     db.close_all()
+    # Mails sendes med det samme, så testene kan læse dem bagefter
     c = Context(settings_mod.load(), mailer=FakeMailer(),
-                ai_key_validator=lambda key: key.endswith('ok'))
+                ai_key_validator=lambda key: key.endswith('ok'),
+                mail_in_background=False)
     yield c
     db.close_all()
 
