@@ -80,7 +80,8 @@ def test_cross_origin_post_is_rejected(client, ctx):
 
 
 @pytest.mark.parametrize('method,path', [
-    ('get', '/status'), ('get', '/settings'), ('get', '/export'),
+    ('get', '/overblik'), ('get', '/status'), ('get', '/settings'),
+    ('get', '/export'),
     ('post', '/delete'), ('post', '/settings'), ('post', '/run-now'),
     ('post', '/recipients/add')])
 def test_protected_routes_require_login(client, method, path):

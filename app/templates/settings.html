@@ -52,7 +52,7 @@ ForældreIntra. Vi tjekker, at det virker, før noget gemmes.</p>
   </fieldset>
 
   <fieldset class="ai">
-    <legend>AI-resumé af ændrede ugeplaner</legend>
+    <legend>AI-resumé af ugeplaner og overblik</legend>
     {% set cur_ai = form.ai_mode or tenant.ai_mode %}
     <div class="choices">
     {% if shared_ai %}
@@ -62,7 +62,7 @@ ForældreIntra. Vi tjekker, at det virker, før noget gemmes.</p>
     <label class="check"><input type="radio" name="ai_mode" value="own"
       {% if cur_ai == 'own' %}checked{% endif %}><span>Ja, med min egen API-nøgle fra console.anthropic.com</span></label>
     <label class="check"><input type="radio" name="ai_mode" value="off"
-      {% if cur_ai == 'off' or not cur_ai %}checked{% endif %}><span>Ingen AI - kun regelbaseret "Nyt siden sidst"</span></label>
+      {% if cur_ai == 'off' or not cur_ai %}checked{% endif %}><span>Ingen AI - kun regelbaseret "Nyt siden sidst" og overblik</span></label>
     </div>
     <div class="when-own">
     <label>Egen API-nøgle
@@ -81,7 +81,7 @@ ForældreIntra. Vi tjekker, at det virker, før noget gemmes.</p>
     <label class="check"><input type="checkbox" name="ai_consent"
       {% if tenant.ai_mode in ('shared', 'own') %}checked{% endif %}>
       <span>Jeg accepterer, at teksten fra ugeplaner (inkl. børnenes fornavne)
-      sendes til Anthropic for at lave resuméet. Se <a href="/privatliv">privatliv</a>.</span></label>
+      sendes til Anthropic for at lave resuméer og overblikket. Se <a href="/privatliv">privatliv</a>.</span></label>
     </div>
   </fieldset>
 

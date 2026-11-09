@@ -1,5 +1,6 @@
 """Falsk fskintra til tests. Opførslen styres af brugernavnet, og miljøet
 gemmes i FSKINTRA_ROOT/env.json, så tests kan se præcis hvad der sendes"""
+import datetime
 import json
 import os
 import sys
@@ -31,4 +32,24 @@ if '--check-login' in sys.argv:
 os.makedirs(os.path.join(root, 'cache'), exist_ok=True)
 with open(os.path.join(root, 'cache', 'side.cache'), 'w') as f:
     f.write('indhold')
+
+# Overblikket, som det rigtige fskintra skriver det efter en hentning
+overview = os.environ.get('FSKINTRA_OVERVIEW_JSON')
+if overview:
+    today = datetime.date.today()
+    day = today + datetime.timedelta(days=1)
+    week = '%d-%d' % (day.isocalendar()[1], day.isocalendar()[0])
+    with open(os.path.join(root, overview), 'w', encoding='utf-8') as f:
+        json.dump({
+            'version': 1, 'dato': today.isoformat(), 'kilde': 'regler',
+            'opdateret': today.isoformat() + 'T06:00:00',
+            'overskrift': '1 lektie', 'boern': ['Anna 3B'],
+            'punkter': [{
+                'id': 'Anna 3B|%s|Dansk|0' % day.isoformat(),
+                'barn': 'Anna 3B', 'dato': day.isoformat(), 'uge': week,
+                'fag': 'Dansk', 'kategori': 'lektie',
+                'kort': 'Læs side 12-14', 'tekst': 'Læs side 12-14',
+            }],
+            'seneste_aendring': [],
+        }, f)
 sys.exit(0)

@@ -20,8 +20,8 @@ skolen eller itslearning. Fejl kan meldes på
       <td data-label="Hvordan">På krypteret disk, slettes automatisk efter {{ retention_days }} dage</td></tr>
   <tr><td>Markering af sendte mails</td><td data-label="Formål">Så du ikke får den samme mail to gange</td>
       <td data-label="Hvordan">Kun et id. Der gemmes ingen kopi af selve mailen</td></tr>
-  <tr><td>Ugeplanernes punkter</td><td data-label="Formål">"Nyt siden sidst" i ugeplan-mails</td>
-      <td data-label="Hvordan">Slettes efter 14 dage</td></tr>
+  <tr><td>Ugeplanernes punkter</td><td data-label="Formål">"Nyt siden sidst" i ugeplan-mails og siden <em>Overblik</em></td>
+      <td data-label="Hvordan">På krypteret disk. Slettes 14 dage efter ugens udløb</td></tr>
   <tr><td>Log over de seneste 10 kørsler og 50 hændelser</td><td data-label="Formål">Fejlfinding</td>
       <td data-label="Hvordan">Kan indeholde børnenes navne og titler på beskeder. Ingen kodeord</td></tr>
   </tbody>
@@ -34,8 +34,10 @@ skolen eller itslearning. Fejl kan meldes på
   <li><strong>Mailudbyderen</strong> sender mails til dig.</li>
   <li><strong>Anthropic</strong> modtager kun noget, hvis du slår AI-resuméer
   til. Det er teksten fra ugeplaner, inklusive børnenes fornavne, og den
-  behandles uden for EU. AI er slået fra, indtil du selv vælger det og
-  giver samtykke.</li>
+  behandles uden for EU. Den sendes, når en ugeplan er ændret, og når
+  overblikket skal laves igen (højst en gang om dagen, hvis intet er
+  ændret). AI er slået fra, indtil du selv vælger det og giver
+  samtykke.</li>
 </ul>
 
 <h2>Sikkerhed</h2>

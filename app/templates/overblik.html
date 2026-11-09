@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Overblik{% endblock %}
+{% block content %}
+<h1>Overblik</h1>
+{% if tenant.status == 'new' %}
+<p class="warn">Du mangler at angive dit login til ForældreIntra.
+<a href="/settings">Angiv login</a></p>
+{% else %}
+{% if tenant.status == 'paused' %}
+<p class="warn">Hentningen er på pause, så overblikket bliver ikke opdateret.
+{{ pause_reason }} <a href="/status">Se status</a></p>
+{% elif tenant.last_exit %}
+<p class="warn">Den seneste hentning fejlede, så overblikket kan mangle det
+nyeste. <a href="/status">Se status</a></p>
+{% endif %}
+{% if not weekplans %}
+<p class="warn">Overblikket bygger på ugeplanerne, og dem henter du ikke.
+Slå "Ugeplaner" til under <a href="/settings">Indstillinger</a>.</p>
+{% endif %}
+
+{% if view is none %}
+  {% if tenant.status == 'active' and weekplans %}
+  <p class="lead">
+  {%- if tenant.needs_catchup -%}
+    Første hentning kører snart. Derefter kan du se lektier, afleveringer,
+    ture og andet fra ugeplanerne her.
+  {%- else -%}
+    Overblikket er klar efter næste hentning. Vi tjekker ForældreIntra
+    {{ run_schedule }}.
+  {%- endif %}</p>
+  {% endif %}
+{% else %}
+<p class="lead">{{ view.headline }}</p>
+
+{% for c in view.children %}
+<section class="card overview-child" aria-labelledby="barn-{{ loop.index }}">
+  <h2 id="barn-{{ loop.index }}">{{ c.name }}</h2>
+  {% for s in c.sections %}
+  <h3>{{ s.title }}</h3>
+  <ul class="rows items">
+    {% for r in s.rows %}
+    <li>
+      <span class="day{% if r.soon %} soon{% endif %}">{{ r.day }}</span>
+      <div class="grow">
+        {% if r.subject %}<strong>{{ r.subject }}:</strong> {% endif %}{{ r.short }}
+        {% if r.label %}<span class="badge warn">{{ r.label }}</span>{% endif %}
+        {% if r.text %}
+        <details class="more"><summary>Vis hele teksten</summary>
+          <p class="fulltext">{{ r.text }}</p></details>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Intet de næste dage.</p>
+  {% endfor %}
+</section>
+{% else %}
+<p class="muted">Der er ikke hentet nogen ugeplaner endnu.</p>
+{% endfor %}
+
+{% if view.changes %}
+<h2 id="aendringer">Seneste ændring</h2>
+<section class="card changes" aria-labelledby="aendringer">
+  {% for c in view.changes %}
+  <div class="change">
+    <p class="change-head"><strong>{{ c.child }}</strong>
+      {%- if c.title %} · {{ c.title }}{% endif %}
+      {%- if c.when %} <span class="muted">{{ c.when }}</span>{% endif %}</p>
+    {% if c.summary %}<p>{{ c.summary }}</p>{% endif %}
+    {% if c.new %}
+    <p class="muted">Ny ugeplan.</p>
+    {% elif c.rows %}
+    <ul class="rows items">
+      {% for r in c.rows %}
+      <li>
+        <span class="badge {{ r.badge }}">{{ r.status }}</span>
+        <span class="grow">
+          {%- if r.where %}<span class="muted">{{ r.where }}:</span> {% endif -%}
+          {% if r.removed %}<s>{{ r.text }}</s>{% else %}{{ r.text }}{% endif -%}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if c.more %}<p class="hint">… og {{ c.more }} mere</p>{% endif %}
+    {% elif not c.summary %}
+    <p class="muted">Ingen ændringer i indholdet.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<p class="hint updated">{% if view.updated %}Opdateret {{ view.updated }}{% endif %}
+{%- if view.ai %}{% if view.updated %} · {% endif %}AI-resumé{% endif %}</p>
+{% endif %}
+{# En web app har ingen genindlæs-knap #}
+<div class="buttons app-only"><a class="button secondary" href="/overblik">Opdatér</a></div>
+{% endif %}
+{% endblock %}

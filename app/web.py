@@ -1,5 +1,7 @@
-"""Den offentlige app: tilmelding, login, indstillinger, status, sletning."""
+"""Den offentlige app: tilmelding, login, overblik, indstillinger, status,
+sletning."""
 
+import datetime
 import functools
 import hmac
 import json
@@ -9,7 +11,8 @@ import re
 from flask import (Flask, Response, abort, g, make_response, redirect,
                    render_template, request)
 
-from . import auth, jobs, mails, runner, security, tenants, ui
+from . import (auth, jobs, mails, overview, runner, security, tenants,
+               ui)
 from .context import AiKeyCheckUnavailable
 from .settings import AI_MODELS, DEFAULT_SECTIONS, SECTIONS
 
@@ -24,8 +27,8 @@ THEMES = ('light', 'dark')
 # Sider man kommer tilbage til efter et temaskift. Målet slås op her, så
 # /tema aldrig sender videre til en adresse fra formularen (open redirect).
 # Alle andre sider giver forsiden
-THEME_RETURN = {p: p for p in ('/', '/status', '/settings', '/privatliv',
-                               '/kode')}
+THEME_RETURN = {p: p for p in ('/', '/overblik', '/status', '/settings',
+                               '/privatliv', '/kode')}
 # Efter en side, der er svar på en POST, lander man på en GET-side
 THEME_RETURN_AFTER_POST = {'/settings': '/settings', '/login': '/kode',
                            '/signup': '/kode', '/kode': '/kode'}
@@ -116,10 +119,10 @@ def create_public_app(ctx):
             return view(*a, **kw)
         return wrapper
 
-    def start_session(tenant_id):
+    def start_session(tenant_id, target='/overblik'):
         token = auth.create_session(conn(), tenant_id)
         resp = redirect('/settings' if tenants.get(conn(), tenant_id)
-                        ['status'] == 'new' else '/status', 303)
+                        ['status'] == 'new' else target, 303)
         resp.set_cookie(SESSION_COOKIE, token, secure=True, httponly=True,
                         samesite='Lax', path='/',
                         max_age=auth.SESSION_ABSOLUTE)
@@ -169,7 +172,7 @@ def create_public_app(ctx):
     @app.get('/')
     def index():
         if g.tenant is not None:
-            return redirect('/status', 302)
+            return redirect('/overblik', 302)
         return render_template('index.html',
                                deleted=request.args.get('slettet') == '1',
                                has_code=bool(request.cookies.get(
@@ -267,7 +270,7 @@ def create_public_app(ctx):
     @app.get('/kode')
     def code_page():
         if g.tenant is not None:
-            return redirect('/status', 302)
+            return redirect('/overblik', 302)
         return render_template('check_email.html', has_code=bool(
             request.cookies.get(CODE_COOKIE)))
 
@@ -371,7 +374,20 @@ def create_public_app(ctx):
     def logout_all():
         auth.delete_all_sessions(conn(), g.tenant['id'])
         tenants.audit(conn(), g.tenant['id'], 'Logget ud overalt')
-        return start_session(g.tenant['id'])
+        return start_session(g.tenant['id'], '/status')
+
+    @app.get('/overblik')
+    @login_required
+    def overview_page():
+        t = g.tenant
+        data, mtime = overview.read(settings, t['id'])
+        view = None
+        if data is not None:
+            view = overview.view(data, datetime.date.today(), mtime)
+        return render_template(
+            'overblik.html', view=view,
+            weekplans='pln' in (tenants.sections(t) or DEFAULT_SECTIONS),
+            pause_reason=PAUSE_REASONS.get(t['pause_reason'] or ''))
 
     @app.get('/status')
     @login_required
@@ -595,6 +611,8 @@ def create_public_app(ctx):
     @login_required
     def export():
         data = tenants.export(conn(), g.tenant['id'])
+        # Det seneste overblik, præcis som fskintra skrev det
+        data['overblik'] = overview.load(settings, g.tenant['id'])
         return Response(
             json.dumps(data, ensure_ascii=False, indent=2),
             mimetype='application/json',

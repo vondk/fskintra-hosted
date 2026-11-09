@@ -18,6 +18,7 @@ import threading
 import time
 from dataclasses import dataclass
 
+from .overview import FILENAME as OVERVIEW_FILENAME
 from .tenants import TENANT_ID_RE
 
 EXIT_OK = 0
@@ -105,6 +106,8 @@ def build_env(settings, tenant_id, profile):
         'FSKINTRA_SMTP_VERIFY_SSL': 'true' if smtp.verify_ssl else 'false',
         'FSKINTRA_HA_TODO': 'off',
         'FSKINTRA_HA_CALENDAR': 'off',
+        # Overblikket til /overblik og kalenderen (relativ til FSKINTRA_ROOT)
+        'FSKINTRA_OVERVIEW_JSON': OVERVIEW_FILENAME,
     }
     if smtp.user:
         env['FSKINTRA_SMTP_USER'] = smtp.user
