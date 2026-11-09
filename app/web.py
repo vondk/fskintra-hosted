@@ -293,8 +293,10 @@ def create_public_app(ctx):
     @app.post('/kode')
     def code_use():
         if g.tenant is not None:
-            # Dobbelttryk, hvor første svar nåede at logge ind
-            return redirect('/status', 303)
+            # Dobbelttryk, hvor første svar nåede at logge ind: samme sted
+            # hen som første svar
+            return redirect('/settings' if g.tenant['status'] == 'new'
+                            else '/overblik', 303)
         if limited('code-ip', client_ip(), 30):
             return message('For mange forsøg', 'Prøv igen om en time.', 429)
         nonce = request.cookies.get(CODE_COOKIE, '')
