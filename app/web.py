@@ -11,8 +11,8 @@ import re
 from flask import (Flask, Response, abort, g, make_response, redirect,
                    render_template, request)
 
-from . import (auth, jobs, mails, overview, runner, security, tenants,
-               ui)
+from . import (auth, ics, jobs, mails, overview, runner, security,
+               tenants, ui)
 from .context import AiKeyCheckUnavailable
 from .settings import AI_MODELS, DEFAULT_SECTIONS, SECTIONS
 
@@ -45,7 +45,17 @@ MESSAGES = {
                          'skal klikke på for at godkende den nye modtager.',
     'recipient_removed': 'Modtageren er fjernet.',
     'logged_out_all': 'Du er logget ud på alle andre enheder.',
+    'ics_created': 'Kalenderlinket er klar.',
+    'ics_new': 'Du har fået et nyt kalenderlink. Det gamle virker ikke '
+               'længere.',
+    'ics_removed': 'Kalenderlinket er slået fra.',
 }
+# Vises ved kalenderafsnittet og ikke øverst på siden
+CALENDAR_MESSAGES = ('ics_created', 'ics_new', 'ics_removed')
+
+# En kalender henter typisk feedet et par gange i timen. Grænsen gælder
+# alle, der har linket, tilsammen
+ICS_FETCHES_PER_HOUR = 120
 
 PAUSE_REASONS = {
     'user': 'Du har selv sat hentningen på pause.',
@@ -154,6 +164,12 @@ def create_public_app(ctx):
 
     def message(title, text, status=200):
         return render_template('message.html', title=title, text=text), status
+
+    def plain(text, status):
+        resp = Response(text + '\n', status, mimetype='text/plain')
+        if status == 429:
+            resp.headers['Retry-After'] = '3600'
+        return resp
 
     # Offentlige sider
 
@@ -389,12 +405,28 @@ def create_public_app(ctx):
             weekplans='pln' in (tenants.sections(t) or DEFAULT_SECTIONS),
             pause_reason=PAUSE_REASONS.get(t['pause_reason'] or ''))
 
+    def calendar_links(t):
+        '''Adresserne til forælderens kalenderlink - eller None, hvis der
+        ikke er et link (eller det ikke kan dekrypteres)'''
+        token = tenants.ics_token(ctx.crypto, t)
+        if not token:
+            return None
+        path = '/kalender/%s.ics' % token
+        # webcals og ikke webcal: det sidste betyder http, og så ville
+        # tokenet blive sendt ukrypteret, før Fly sender videre til https
+        return {'url': settings.public_url + path,
+                'subscribe': 'webcals://%s%s' % (public_host, path)}
+
     @app.get('/status')
     @login_required
     def status():
         t = g.tenant
+        m = request.args.get('m', '')
+        text = MESSAGES.get(m)
+        in_calendar = m in CALENDAR_MESSAGES
         return render_template(
-            'status.html', msg=MESSAGES.get(request.args.get('m', '')),
+            'status.html', msg=None if in_calendar else text,
+            cal_msg=text if in_calendar else None, cal=calendar_links(t),
             children=tenants.children(t),
             pause_reason=PAUSE_REASONS.get(t['pause_reason'] or ''),
             recipients=tenants.recipients(conn(), t['id']),
@@ -606,6 +638,54 @@ def create_public_app(ctx):
                            'hentning tre gange i timen.', 429)
         tenants.update(conn(), t['id'], run_requested=1)
         return redirect('/status?m=queued', 303)
+
+    # Kalenderlink
+
+    @app.post('/kalender/nyt')
+    @login_required
+    def calendar_new():
+        t = g.tenant
+        if limited('ics-new', t['id'], 10):
+            return message('For mange forsøg', 'Prøv igen om en time.', 429)
+        renewed = bool(t['ics_token_hash'])
+        tenants.new_ics_token(conn(), ctx.crypto, t['id'])
+        tenants.audit(conn(), t['id'], 'Kalenderlink fornyet' if renewed
+                      else 'Kalenderlink oprettet')
+        return redirect('/status?m=%s#kalender'
+                        % ('ics_new' if renewed else 'ics_created'), 303)
+
+    @app.post('/kalender/slet')
+    @login_required
+    def calendar_remove():
+        t = g.tenant
+        if not t['ics_token_hash']:
+            return redirect('/status#kalender', 303)
+        tenants.clear_ics_token(conn(), t['id'])
+        tenants.audit(conn(), t['id'], 'Kalenderlink slået fra')
+        return redirect('/status?m=ics_removed#kalender', 303)
+
+    @app.get('/kalender/<token>.ics')
+    def calendar_feed(token):
+        '''Feedet til en kalender-app eller -tjeneste. Tokenet i adressen
+        er den eneste adgangskontrol - der er hverken session eller CSRF'''
+        # En kalender-app skal ikke have en cookie. Svarene er ren tekst, for
+        # det er et program og ikke en browser, der læser dem
+        g.csrf_new = False
+        t = tenants.get_by_ics_token(conn(), token)
+        if t is None:
+            if limited('ics-miss', client_ip(), 60):
+                return plain('For mange forsøg', 429)
+            return plain('Kalenderlinket virker ikke', 404)
+        # Pr. forælder og ikke pr. IP: Google og Apple henter for mange
+        # brugere fra de samme adresser
+        if limited('ics', t['id'], ICS_FETCHES_PER_HOUR):
+            return plain('For mange forsøg', 429)
+        data, mtime = overview.read(settings, t['id'])
+        return Response(
+            ics.build(data, datetime.date.today(), t['id'], public_host,
+                      mtime),
+            mimetype='text/calendar',
+            headers={'Content-Disposition': 'inline; filename="skole.ics"'})
 
     @app.get('/export')
     @login_required

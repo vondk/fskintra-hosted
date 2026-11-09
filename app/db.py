@@ -83,6 +83,14 @@ MIGRATIONS = [
     '''
     ALTER TABLE tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
     ''',
+    # 3: hemmeligt kalenderlink (ICS). Hash til opslag, og en krypteret kopi,
+    # så linket kan vises igen på statussiden
+    '''
+    ALTER TABLE tenants ADD COLUMN ics_token_hash TEXT;
+    ALTER TABLE tenants ADD COLUMN ics_token_enc TEXT;
+    ALTER TABLE tenants ADD COLUMN ics_created_at INTEGER;
+    CREATE UNIQUE INDEX tenants_ics_token ON tenants (ics_token_hash);
+    ''',
 ]
 
 _local = threading.local()

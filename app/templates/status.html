@@ -110,6 +110,55 @@ modtagere.</p>
 </details>
 {% endif %}
 
+<h2 id="kalender">Kalender</h2>
+{% if cal_msg %}<p class="flash" role="status">{{ cal_msg }}</p>{% endif %}
+{% set renew %}
+<div class="buttons">
+  <form method="post" action="/kalender/nyt">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit" class="secondary">Lav nyt link</button></form>
+  <form method="post" action="/kalender/slet">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit" class="secondary">Slå fra</button></form>
+</div>
+{% endset %}
+{% if cal %}
+<p>Lektier, afleveringer, ture og ændrede tider fra ugeplanerne står som
+heldagsbegivenheder i kalenderen "Skole".</p>
+<div class="buttons">
+  <a class="button" href="{{ cal.subscribe }}">Abonnér på iPhone, iPad og Mac</a>
+</div>
+<label>Kalenderlink til andre kalendere
+  <input type="text" class="copy" readonly value="{{ cal.url }}"
+         autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+<p class="hint">Google Kalender (på en computer):
+<a href="https://calendar.google.com/calendar/r/settings/addbyurl" rel="noopener noreferrer">Tilføj kalender fra webadresse</a>,
+og indsæt linket. Outlook: <em>Tilføj kalender</em> og <em>Abonner fra
+internettet</em>. Kalenderen bestemmer selv, hvor tit den henter. Hos Google
+kan der gå op til et døgn.</p>
+<p class="hint">Linket virker som et kodeord: alle, der har det, kan se
+kalenderen. Lav et nyt, hvis det er kommet i de forkerte hænder. Så holder
+det gamle op med at virke. Oprettet {{ tenant.ics_created_at|dt }}.</p>
+{{ renew }}
+{% elif tenant.ics_token_hash %}
+<p class="warn">Kalenderlinket kan ikke vises lige nu. Kalendere, der
+allerede abonnerer, virker stadig. Lav et nyt link, hvis du skal bruge det
+i en ny kalender.</p>
+{{ renew }}
+{% else %}
+<p>Få lektier, afleveringer, ture og ændrede tider fra ugeplanerne ind i din
+egen kalender, fx på telefonen.</p>
+<div class="buttons">
+  <form method="post" action="/kalender/nyt">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit">Lav kalenderlink</button></form>
+</div>
+<p class="hint">Du får et hemmeligt link, som din kalender henter fra. Den
+viser det samme som <a href="/overblik">Overblik</a> fra i dag og frem, dog
+ikke "husk at medbringe". Bruger du fx Google eller Apple, er det deres
+servere, der henter kalenderen, og de kan dermed se indholdet.</p>
+{% endif %}
+
 <h2>Dine data</h2>
 <div class="buttons">
   <a class="button secondary" href="/export" download>Download dine data (JSON)</a>

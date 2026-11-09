@@ -134,6 +134,10 @@ select { padding-right: 2.25rem; background-repeat: no-repeat;
 input:focus, select:focus { outline: none; border-color: var(--btn);
   box-shadow: 0 0 0 3px var(--focus); }
 input::placeholder { color: var(--muted); opacity: .8; }
+/* Et link, der skal kopieres (ingen JavaScript, så det markeres i hånden) */
+/* Skriften må ikke være under 16px: så zoomer iOS ind ved fokus */
+input.copy { background: var(--code); border-color: var(--line-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 label.check { display: flex; gap: .7rem; align-items: flex-start; margin: 0;
   padding: .55rem 0; min-height: 44px; font-weight: 400; cursor: pointer; }
 label.check input { flex: none; width: 1.25rem; height: 1.25rem;

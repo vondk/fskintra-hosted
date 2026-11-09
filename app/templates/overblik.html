@@ -94,6 +94,10 @@ Slå "Ugeplaner" til under <a href="/settings">Indstillinger</a>.</p>
 
 <p class="hint updated">{% if view.updated %}Opdateret {{ view.updated }}{% endif %}
 {%- if view.ai %}{% if view.updated %} · {% endif %}AI-resumé{% endif %}</p>
+{% if not tenant.ics_token_hash %}
+<p class="hint">Vil du have det i din kalender?
+<a href="/status#kalender">Lav et kalenderlink</a>.</p>
+{% endif %}
 {% endif %}
 {# En web app har ingen genindlæs-knap #}
 <div class="buttons app-only"><a class="button secondary" href="/overblik">Opdatér</a></div>

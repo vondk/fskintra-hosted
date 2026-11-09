@@ -2,8 +2,10 @@
 sletning. Alle funktioner tager tenant_id eksplicit og alle SQL-forespørgsler
 er afgrænset til den ene forælder."""
 
+import hashlib
 import json
 import re
+import secrets
 import shutil
 import uuid
 
@@ -12,6 +14,8 @@ from .crypto import DecryptError
 from .db import now
 
 TENANT_ID_RE = re.compile(r'^[0-9a-f]{32}$')
+# secrets.token_urlsafe(32)
+ICS_TOKEN_RE = re.compile(r'^[A-Za-z0-9_-]{43}$')
 # Kun ASCII: mange SMTP-servere understøtter ikke SMTPUTF8
 EMAIL_RE = re.compile(r"^[A-Za-z0-9.!#$%&*+/=?^_`{|}~-]+"
                       r'@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$')
@@ -62,7 +66,8 @@ UPDATABLE = frozenset((
     'status', 'pause_reason', 'logintype', 'hostname', 'username',
     'password_enc', 'children', 'sections', 'ai_mode', 'ai_key_enc',
     'ai_model', 'needs_catchup', 'run_requested', 'fail_count',
-    'last_run_at', 'last_exit'))
+    'last_run_at', 'last_exit', 'ics_token_hash', 'ics_token_enc',
+    'ics_created_at'))
 
 
 def update(conn, tenant_id, **fields):
@@ -97,7 +102,8 @@ def rotate_keys(conn, crypto):
     n = 0
     for t in all_tenants(conn):
         for column, field in (('password_enc', 'password'),
-                              ('ai_key_enc', 'ai_key')):
+                              ('ai_key_enc', 'ai_key'),
+                              ('ics_token_enc', 'ics_token')):
             value = t[column]
             if value and crypto.needs_rotation(value):
                 try:
@@ -108,6 +114,53 @@ def rotate_keys(conn, crypto):
                        **{column: crypto.encrypt(plain, t['id'], field)})
                 n += 1
     return n
+
+
+# Kalenderlink: et hemmeligt token i adressen giver læseadgang til
+# kalenderen uden login (en kalender-app kan ikke logge ind)
+
+def _ics_hash(token):
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+
+def new_ics_token(conn, crypto, tenant_id):
+    '''Lav et (nyt) kalenderlink - et tidligere holder op med at virke.
+
+    Opslag sker på en hash, så et læk af databasen ikke giver adgang. Den
+    krypterede kopi er kun til at vise linket igen på statussiden'''
+    token = secrets.token_urlsafe(32)
+    update(conn, tenant_id, ics_token_hash=_ics_hash(token),
+           ics_token_enc=crypto.encrypt(token, tenant_id, 'ics_token'),
+           ics_created_at=now())
+    return token
+
+
+def clear_ics_token(conn, tenant_id):
+    update(conn, tenant_id, ics_token_hash=None, ics_token_enc=None,
+           ics_created_at=None)
+
+
+def get_by_ics_token(conn, token):
+    if not ICS_TOKEN_RE.match(token or ''):
+        return None
+    return conn.execute('SELECT * FROM tenants WHERE ics_token_hash = ?',
+                        (_ics_hash(token),)).fetchone()
+
+
+def ics_token(crypto, tenant):
+    '''Tokenet til det aktive kalenderlink - eller tom streng, hvis der
+    ikke er noget, eller det ikke kan dekrypteres (fx forkert MASTER_KEY)'''
+    if not tenant['ics_token_hash'] or not tenant['ics_token_enc']:
+        return ''
+    try:
+        token = crypto.decrypt(tenant['ics_token_enc'], tenant['id'],
+                               'ics_token')
+    except DecryptError:
+        return ''
+    # Den krypterede kopi skal høre til det link, der virker
+    if _ics_hash(token) != tenant['ics_token_hash']:
+        return ''
+    return token
 
 
 def sections(tenant):
@@ -227,6 +280,9 @@ def export(conn, tenant_id):
             'ai': t['ai_mode'],
             'egen_ai_noegle_gemt': bool(t['ai_key_enc']),
             'ai_model': t['ai_model'],
+            # Selve linket er en hemmelighed og er ikke med
+            'kalenderlink': bool(t['ics_token_hash']),
+            'kalenderlink_oprettet': t['ics_created_at'],
         },
         'modtagere': [{'email': r['email'],
                        'godkendt': r['approved_at'],

@@ -83,7 +83,8 @@ def test_cross_origin_post_is_rejected(client, ctx):
     ('get', '/overblik'), ('get', '/status'), ('get', '/settings'),
     ('get', '/export'),
     ('post', '/delete'), ('post', '/settings'), ('post', '/run-now'),
-    ('post', '/recipients/add')])
+    ('post', '/recipients/add'), ('post', '/kalender/nyt'),
+    ('post', '/kalender/slet')])
 def test_protected_routes_require_login(client, method, path):
     if method == 'get':
         r = client.get(path)
