@@ -197,6 +197,13 @@ def record_run(conn, tenant_id, result):
                  (tenant_id, tenant_id, KEEP_RUNS))
 
 
+def record_failure(conn, tenant_id):
+    '''En kørsel stoppede med en exception i stedet for et resultat. Tæl
+    fejlen og flyt forælderen bagerst i køen, så den ikke blokerer'''
+    conn.execute('UPDATE tenants SET last_run_at = ?, fail_count = '
+                 'fail_count + 1 WHERE id = ?', (now(), tenant_id))
+
+
 def runs(conn, tenant_id, limit=KEEP_RUNS):
     return conn.execute('SELECT * FROM runs WHERE tenant_id = ? ORDER BY id '
                         'DESC LIMIT ?', (tenant_id, limit)).fetchall()

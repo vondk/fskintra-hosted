@@ -1,9 +1,11 @@
 import datetime
 import re
+import sqlite3
 
 from app import auth, jobs, runner, tenants
 from app.scheduler import Scheduler
-from conftest import HOST, csrf, post, save_settings, signup
+from conftest import (HOST, csrf, new_client, post, save_settings,
+                      signup)
 
 ADMIN_DOMAIN = 'localhost'
 
@@ -80,6 +82,91 @@ def test_cycle_runs_active_tenants_within_hours(client, ctx):
     assert tenants.runs(ctx.db(), tid)[0]['kind'] == 'run'
     s.tick(datetime.datetime(2026, 11, 4, 10, 5))  # samme slot
     assert len(tenants.runs(ctx.db(), tid)) == 2
+
+
+def _kinds(ctx, tid):
+    return [r['kind'] for r in reversed(tenants.runs(ctx.db(), tid))]
+
+
+def test_exception_in_one_tenant_does_not_stop_others(client, ctx,
+                                                      monkeypatch):
+    # a har aldrig kørt og sorteres først; b kører efter a
+    a = _active(client, ctx, 'a@example.net')
+    b = _active(new_client(client), ctx, 'b@example.net')
+    tenants.update(ctx.db(), a, needs_catchup=0)
+    tenants.update(ctx.db(), b, needs_catchup=0, last_run_at=1)
+    real_record_run = tenants.record_run
+
+    def record_run(conn, tid, result):
+        if tid == a:
+            raise sqlite3.OperationalError('database or disk is full')
+        return real_record_run(conn, tid, result)
+
+    monkeypatch.setattr(tenants, 'record_run', record_run)
+    s = Scheduler(ctx, jitter=(0, 0))
+    s.tick(datetime.datetime(2026, 11, 4, 10, 0))
+    assert _kinds(ctx, b) == ['check', 'run']
+    t = tenants.get(ctx.db(), a)
+    # a låser ikke rækkefølgen fast: den er talt som fejl og har fået
+    # last_run_at, så den ikke længere sorteres først som "aldrig kørt"
+    assert t['fail_count'] == 1 and t['last_run_at'] is not None
+    s.tick(datetime.datetime(2026, 11, 4, 11, 0))
+    assert _kinds(ctx, b) == ['check', 'run', 'run']
+    assert tenants.get(ctx.db(), a)['fail_count'] == 2
+
+
+def test_exception_in_pending_does_not_stop_fixed_run(client, ctx,
+                                                      monkeypatch):
+    a = _active(client, ctx, 'a@example.net')          # catch-up venter
+    b = _active(new_client(client), ctx, 'b@example.net')
+    tenants.update(ctx.db(), b, needs_catchup=0)
+    real_execute = jobs.execute
+    calls = []
+
+    def execute(c, tid, kind, *args, **kw):
+        calls.append((tid, kind))
+        if tid == a:
+            raise OSError('Popen fejlede')
+        return real_execute(c, tid, kind, *args, **kw)
+
+    monkeypatch.setattr(jobs, 'execute', execute)
+    s = Scheduler(ctx, jitter=(0, 0))
+    s.tick(datetime.datetime(2026, 11, 4, 10, 0))
+    # a prøves én gang i trin 1 og ikke igen i samme tick; b kører i trin 2
+    assert calls == [(a, 'catchup'), (b, 'run')]
+    t = tenants.get(ctx.db(), a)
+    assert t['fail_count'] == 1 and t['last_run_at']
+    assert t['needs_catchup'] == 1
+
+
+def test_failed_catchup_waits_for_next_slot(client, ctx):
+    tid = _active(client, ctx)
+    tenants.update(ctx.db(), tid, username='nede')   # exit 4
+    s = Scheduler(ctx, jitter=(0, 0))
+    s.tick(datetime.datetime(2026, 11, 4, 10, 0))
+    assert _kinds(ctx, tid) == ['check', 'catchup']
+    t = tenants.get(ctx.db(), tid)
+    assert (t['fail_count'], t['last_exit'], t['needs_catchup']) == (1, 4, 1)
+
+    # Næste ticks i samme slot: ingen nye forsøg mod skolens server
+    for minute in (0, 1, 30, 59):
+        s.tick(datetime.datetime(2026, 11, 4, 10, minute, 10))
+    assert _kinds(ctx, tid) == ['check', 'catchup']
+
+    # Næste faste slot: catch-up (ikke en almindelig kørsel) prøves igen
+    s.tick(datetime.datetime(2026, 11, 4, 11, 0))
+    assert _kinds(ctx, tid) == ['check', 'catchup', 'catchup']
+    assert tenants.get(ctx.db(), tid)['fail_count'] == 2
+
+    # Skolen er oppe igen: catch-up lykkes og alt nulstilles
+    tenants.update(ctx.db(), tid, username='petjen')
+    s.tick(datetime.datetime(2026, 11, 4, 11, 0, 10))   # stadig samme slot
+    assert len(_kinds(ctx, tid)) == 3
+    s.tick(datetime.datetime(2026, 11, 4, 12, 0))
+    t = tenants.get(ctx.db(), tid)
+    assert (t['fail_count'], t['needs_catchup'], t['last_exit']) == (0, 0, 0)
+    s.tick(datetime.datetime(2026, 11, 4, 13, 0))
+    assert _kinds(ctx, tid)[-2:] == ['catchup', 'run']
 
 
 def test_paused_tenants_are_skipped(client, ctx):
