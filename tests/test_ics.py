@@ -83,6 +83,16 @@ def test_escape():
     assert ics.escape('a\tb\x00c\x07d\x7fe\x9bf') == 'a bcdef'
 
 
+def test_escape_removes_every_control_character():
+    for i in list(range(0x20)) + list(range(0x7f, 0xa0)):
+        want = {0x09: 'a b'}.get(i, 'ab')
+        # Alt, splitlines() regner for et linjeskift, bliver til ét
+        if len(('a%sb' % chr(i)).splitlines()) == 2:
+            want = 'a\\nb'
+        assert ics.escape('a%sb' % chr(i)) == want, hex(i)
+    assert ics.escape('a\xa0b') == 'a\xa0b'
+
+
 def test_text_from_the_school_cannot_add_properties_or_events():
     feed = _build(_item(
         '2026-11-05',

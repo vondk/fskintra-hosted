@@ -8,7 +8,6 @@ oktetter uden at dele et UTF-8-tegn."""
 
 import datetime
 import hashlib
-import re
 
 from . import overview
 
@@ -21,15 +20,18 @@ MAX_SUMMARY = 80
 LABELS = {'tur': 'Tur/særlig dag', 'ændret_tid': 'Ændret tid',
           'lektie': 'Lektie', 'aflevering': 'Aflevering'}
 
-_CONTROL_RE = re.compile('[\x00-\x08\x0e-\x1f\x7f-\x9f]')
+# Kontroltegn (C0 og C1) fjernes - undtagen linjeskift, og en tabulator
+# bliver til et mellemrum
+_CONTROL = dict.fromkeys(list(range(0x20)) + list(range(0x7f, 0xa0)))
+_CONTROL[0x09] = ' '
+del _CONTROL[0x0a]
 
 
 def escape(text):
     '''En TEXT-værdi (RFC 5545, afsnit 3.3.11)'''
     # Alle slags linjeskift bliver til ét, og øvrige kontroltegn fjernes. Et
     # råt CR/LF ville ellers begynde en ny linje - og dermed en ny egenskab
-    text = '\n'.join(text.splitlines())
-    text = _CONTROL_RE.sub('', text.replace('\t', ' '))
+    text = '\n'.join(text.splitlines()).translate(_CONTROL)
     return (text.replace('\\', '\\\\').replace(';', '\\;')
             .replace(',', '\\,').replace('\n', '\\n'))
 
