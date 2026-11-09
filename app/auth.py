@@ -14,6 +14,8 @@ from .db import now
 TOKEN_RE = re.compile(r'^[A-Za-z0-9_-]{40,64}$')
 CODE_RE = re.compile(r'^[0-9]{6}$')
 CODE_ATTEMPTS = 5
+# Samme kode fra samme browser lige efter, at den er brugt (dobbelttryk)
+CODE_REPEAT_WINDOW = 30
 
 TOKEN_TTL = {
     'signup': 15 * 60,
@@ -119,6 +121,34 @@ def consume_code(conn, nonce, code, purposes):
     cur = conn.execute('UPDATE tokens SET used_at = ? WHERE hash = ? AND '
                        'used_at IS NULL', (now(), h))
     if cur.rowcount != 1:
+        return None
+    return row
+
+
+def repeat_code(conn, nonce, code, purposes):
+    '''Koden er lige brugt, og den samme browser sender den igen.
+
+    Siden har ingen JavaScript, så et dobbelttryk på knappen sender
+    formularen to gange. Browseren dropper så det første svar - det med
+    session-cookien - og viser det andet, som ellers ville være "forkert
+    kode". Det kræver stadig cookien fra browseren, der bad om koden, og
+    tæller med i CODE_ATTEMPTS'''
+    if not CODE_RE.match(code or '') or not TOKEN_RE.match(nonce or ''):
+        return None
+    h = _hash(nonce)
+    t = now()
+    row = conn.execute(
+        'SELECT * FROM tokens WHERE hash = ? AND used_at >= ? AND '
+        'expires_at > ?', (h, t - CODE_REPEAT_WINDOW, t)).fetchone()
+    if row is None or row['purpose'] not in purposes:
+        return None
+    cur = conn.execute(
+        'UPDATE tokens SET attempts = attempts + 1 WHERE hash = ? AND '
+        'attempts < ?', (h, CODE_ATTEMPTS))
+    if cur.rowcount != 1:
+        return None
+    if not hmac.compare_digest(row['payload'],
+                               _hash('%s:%s' % (nonce, code))):
         return None
     return row
 

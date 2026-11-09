@@ -2,6 +2,7 @@
 
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 from . import db, mails, tenants
 from .crypto import Crypto
@@ -28,8 +29,14 @@ def validate_anthropic_key(key):
 
 
 class Context:
-    def __init__(self, settings, mailer=None, ai_key_validator=None):
+    def __init__(self, settings, mailer=None, ai_key_validator=None,
+                 mail_in_background=True):
         self.settings = settings
+        # Én tråd: mails fra web sendes i rækkefølge og med højst én SMTP-
+        # forbindelse ad gangen. Ventende mails sendes færdig ved nedlukning
+        self._mail_pool = (ThreadPoolExecutor(max_workers=1,
+                                              thread_name_prefix='mail')
+                           if mail_in_background else None)
         self.crypto = Crypto(settings.master_key, settings.master_key_old)
         self.mailer = mailer or Mailer(settings.smtp)
         self.validate_ai_key = ai_key_validator or validate_anthropic_key
@@ -48,3 +55,21 @@ class Context:
         '''Send en systemmail bygget af en funktion i app/mails.py'''
         subject, text, html = mails.render(self.settings, mail)
         return self.mailer.send(to, subject, text, html)
+
+    def send_mail_soon(self, to, mail):
+        '''Som send_mail, men SMTP-delen sker i baggrunden, så en request
+        svarer med det samme i stedet for at vente sekunder på mailserveren.
+        Det fjerner også tidsforskellen mellem en adresse, der findes, og en
+        der ikke gør (ingen enumeration via svartid). Mailen bygges her, så
+        en fejl i den stadig viser sig i requesten'''
+        subject, text, html = mails.render(self.settings, mail)
+        if self._mail_pool is None:
+            self._send(to, subject, text, html)
+        else:
+            self._mail_pool.submit(self._send, to, subject, text, html)
+
+    def _send(self, to, subject, text, html):
+        try:
+            self.mailer.send(to, subject, text, html)
+        except Exception as e:  # Mailer.send fanger selv SMTP-fejl
+            log.error('Systemmail fejlede: %s', type(e).__name__)
