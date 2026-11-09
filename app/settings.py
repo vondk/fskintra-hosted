@@ -91,6 +91,8 @@ class Settings:
     trust_fly_client_ip: bool
     admin_port: int
     admin_bind: str
+    # Fly-releasenummer fra entrypoint.sh (fx 'v14'), tomt uden for Fly
+    version: str = ''
 
     @property
     def db_path(self):
@@ -177,4 +179,5 @@ def load():
         admin_port=int(env.get('ADMIN_PORT', '9090')),
         # '::' = Fly 6PN (IPv6), som `fly proxy` forbinder til
         admin_bind=env.get('ADMIN_BIND', '::'),
+        version=env.get('APP_VERSION', '').strip()[:32],
     )

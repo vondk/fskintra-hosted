@@ -53,6 +53,12 @@ fly scale count 1
 Volumet hører til én maskine. To maskiner ville give to forskellige
 databaser.
 
+Sidefoden viser Fly-releasenummeret (fx `v14`, samme som `fly releases`).
+Det tælles op af Fly ved hvert deploy - og ved `fly secrets set`, der også
+laver en ny release - så ingen skal bumpe det. `entrypoint.sh` læser det fra
+maskinens metadata ved opstart. Uden for Fly kan det sættes med
+`APP_VERSION`.
+
 Eget domæne:
 
 ```bash

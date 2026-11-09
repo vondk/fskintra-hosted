@@ -4,7 +4,7 @@ import hashlib
 import os
 
 
-def install(app):
+def install(app, version=''):
     '''asset('style.css') giver /static/style.css?v=<hash>, så browsere
     henter de nye filer efter et deploy i stedet for at bruge en gammel
     kopi fra cachen'''
@@ -17,3 +17,5 @@ def install(app):
         return '/static/%s?v=%s' % (name, versions[name])
 
     app.jinja_env.globals['asset'] = asset
+    # Vises i sidefoden, så man kan se hvilket deploy der kører
+    app.jinja_env.globals['app_version'] = version

@@ -22,7 +22,7 @@ def create_admin_app(ctx):
     secure = ctx.settings.admin_url.startswith('https://')
     security.install(app, csrf_cookie='acsrf', secure=secure,
                      expected_url=ctx.settings.admin_url)
-    ui.install(app)
+    ui.install(app, ctx.settings.version)
     settings = ctx.settings
 
     @app.context_processor
