@@ -1,5 +1,6 @@
-/* ForældreIntra til mail. Ingen JavaScript (CSP), så alt interaktivt er
-   ren HTML/CSS. Farverne overholder WCAG AA i både lys og mørk tilstand */
+/* ForældreIntra til mail. Alt interaktivt er ren HTML/CSS. Eneste script er
+   busy.js (spinner på sendte formularer), og siderne virker også uden.
+   Farverne overholder WCAG AA i både lys og mørk tilstand */
 /* Tema: følger systemet (prefers-color-scheme), medmindre brugeren har
    valgt Lyst eller Mørkt - så sætter serveren data-theme på <html> */
 :root {
@@ -157,6 +158,23 @@ button.link { min-height: 0; padding: 0; border: 0; background: none;
   color: var(--accent); font-weight: inherit; text-decoration: underline; }
 button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 button.danger:hover { background: var(--danger-hover); border-color: var(--danger-hover); }
+/* Sendt formular (busy.js): spinner i knappen, og flere klik gør ingenting */
+form[aria-busy="true"] { cursor: progress; }
+button.is-busy { pointer-events: none; transform: translateY(1px);
+  background-image: linear-gradient(100deg, transparent 30%,
+    color-mix(in srgb, currentColor 22%, transparent) 50%, transparent 70%);
+  background-size: 250% 100%; background-repeat: no-repeat;
+  animation: busy-sweep 1.3s linear infinite; }
+button.is-busy::before { content: ""; flex: none; width: 1.1em; height: 1.1em;
+  border: .17em solid currentColor; border-right-color: transparent;
+  border-radius: 50%; animation: busy-spin .7s linear infinite; }
+@keyframes busy-spin { to { transform: rotate(360deg); } }
+@keyframes busy-sweep { from { background-position: 100% 0; }
+  to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  button.is-busy { animation: none; background-image: none; }
+  button.is-busy::before { animation-duration: 1.8s; }
+}
 form.inline { display: inline; }
 form.row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-end; margin: 1rem 0 0; }
 form.row label, form.row > input { flex: 1 1 16rem; margin: 0; }

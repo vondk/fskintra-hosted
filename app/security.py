@@ -9,9 +9,10 @@ from flask import abort, g, request
 
 from .auth import TOKEN_RE
 
-CSP = ("default-src 'none'; style-src 'self'; img-src 'self'; "
-       "manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; "
-       "base-uri 'none'")
+# script-src 'self': kun /static/busy.js. Ingen inline-JS og ingen eval
+CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; "
+       "img-src 'self'; manifest-src 'self'; form-action 'self'; "
+       "frame-ancestors 'none'; base-uri 'none'")
 
 
 def _origin(url):

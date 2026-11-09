@@ -12,7 +12,7 @@ repo. Opret ikke et offentligt issue. Du får svar inden for et par dage.
 | Læk af database, volume eller snapshot | Kodeord og API-nøgler er krypteret med AES-256-GCM. Nøglen (`MASTER_KEY`) findes kun som Fly secret. Tokens og sessions gemmes kun som SHA-256. Volumet er krypteret at rest. |
 | SSRF via skolens adresse | Kun adresser fra `ALLOWED_SCHOOL_HOSTS`, som desuden skal matche `*.m.skoleintra.dk` |
 | Overtaget session omdirigerer mails | Nye modtagere skal godkendes fra login-mailen og bekræftes af modtageren. "Log ud overalt" findes. Login-mailen kan ikke ændres. |
-| CSRF, XSS, clickjacking | Double-submit CSRF-token (primært værn) og Origin-tjek som ekstra lag (fremmed Origin afvises, `null` afgøres af tokenet). `Referrer-Policy: same-origin`. Jinja-autoescape. CSP `default-src 'none'` uden JS. `frame-ancestors 'none'`. |
+| CSRF, XSS, clickjacking | Double-submit CSRF-token (primært værn) og Origin-tjek som ekstra lag (fremmed Origin afvises, `null` afgøres af tokenet). `Referrer-Policy: same-origin`. Jinja-autoescape. CSP `default-src 'none'`; eneste script er `/static/busy.js` (`script-src 'self'`, ingen inline-JS eller eval), og siderne virker uden. `frame-ancestors 'none'`. |
 | Brute force | Rate limits på tilmelding, login, links, login-tjek og "hent nu". Invitationskoden skal være mindst 12 tegn. |
 | Mail-scannere bruger engangslinks | GET viser kun en knap. Linket forbruges først ved POST. |
 | Gæt eller tyveri af login-kode | Koden (6 cifre, 15 min.) virker kun sammen med en tilfældig `__Host-code`-cookie i den browser, der bad om den. Databasen har kun SHA-256 af cookien og af cookie+kode. Højst 5 forsøg pr. kode og 10 pr. adresse i døgnet. Samme svar uanset om adressen findes. |

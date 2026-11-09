@@ -13,7 +13,7 @@ moms for en klasse).
 
 ```
 Fly Machine (arn), non-root
-├─ gunicorn :8080  offentlig app (Flask, server-renderet, uden JavaScript,
+├─ gunicorn :8080  offentlig app (Flask, server-renderet, virker uden JS,
 │                  kan installeres som web app via manifest.webmanifest)
 ├─ :9090           admin, ikke eksponeret, kun via `fly proxy`
 ├─ planlægger      hver halve time kl. 6-22, én forælder ad gangen
@@ -38,8 +38,8 @@ Fly Machine (arn), non-root
   modtageren selv.
 * **Skoler** vælges fra en allowlist (`*.m.skoleintra.dk`). Det forhindrer
   SSRF.
-* **Web:** CSRF, strict CSP uden JS, HSTS og rate limits. Der er ingen
-  access-log, fordi URL'er kan indeholde tokens.
+* **Web:** CSRF, strict CSP (kun ét eget script, ingen inline-JS), HSTS og
+  rate limits. Der er ingen access-log, fordi URL'er kan indeholde tokens.
 * **Afvist login** sætter forælderen på pause med det samme, så kontoen hos
   skolen ikke låses.
 * **Dataminimering:** Der gemmes ingen kopier af sendte mails, og cachen

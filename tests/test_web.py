@@ -16,8 +16,12 @@ from conftest import (INVITE, PUBLIC, csrf, new_client, post,
 def test_security_headers_on_every_response(client, path):
     r = client.get(path)
     h = r.headers
-    assert "default-src 'none'" in h['Content-Security-Policy']
-    assert "frame-ancestors 'none'" in h['Content-Security-Policy']
+    csp = h['Content-Security-Policy']
+    assert "default-src 'none'" in csp
+    assert "frame-ancestors 'none'" in csp
+    # Kun egne scripts (busy.js) - aldrig inline eller eval
+    assert "script-src 'self';" in csp
+    assert 'unsafe' not in csp
     assert h['X-Frame-Options'] == 'DENY'
     assert h['X-Content-Type-Options'] == 'nosniff'
     assert h['Referrer-Policy'] == 'same-origin'
@@ -540,3 +544,17 @@ def test_theme_switch_returns_to_a_get_page_after_post(client, ctx):
     assert b'name="next" value="/privatliv"' in client.get('/privatliv').data
     # Sider uden for listen (fx /auth/<token>) sender tilbage til forsiden
     assert b'name="next" value="/"' in client.get('/findes-ikke').data
+
+
+# Spinner og spærring mod dobbeltklik (static/busy.js)
+
+def test_busy_script_on_pages_and_auth_buttons(client):
+    page = client.get('/').data.decode('utf-8')
+    m = re.search(r'<script src="(/static/busy\.js\?v=[0-9a-f]{12})" defer>'
+                  r'</script>', page)
+    assert m, 'busy.js mangler i <head>'
+    assert page.count('data-busy="Sender mail') == 2
+    assert '<script>' not in page  # ingen inline-JS (CSP)
+    r = client.get(m.group(1))
+    assert r.status_code == 200
+    assert r.mimetype in ('text/javascript', 'application/javascript')
