@@ -32,7 +32,17 @@ def start_background():
         return
     _started = True
 
-    # Planlæggeren startes først - en fejl i admin må ikke stoppe hentningen
+    # AI-cachen startes før planlæggeren, så den første kørsel bruger den.
+    # Kan den ikke starte, kalder fskintra API'et direkte som før
+    try:
+        ctx.ai_proxy.start(ctx.settings.ai_proxy_port)
+        log.info('AI-cache lytter på %s', ctx.ai_proxy.url)
+    except OSError as e:
+        log.error('AI-cachen kunne ikke starte på port %d: %s',
+                  ctx.settings.ai_proxy_port, e)
+
+    # Planlæggeren startes før admin - en fejl i admin må ikke stoppe
+    # hentningen
     Scheduler(ctx).start()
     try:
         admin = make_server(ctx.settings.admin_bind, ctx.settings.admin_port,

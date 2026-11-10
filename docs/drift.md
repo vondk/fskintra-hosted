@@ -100,6 +100,7 @@ sendes til `ADMIN_EMAIL`.
 | Opgave | Hvordan |
 |---|---|
 | Logs | `fly logs`. Der logges kun tenant-id, exit-kode og varighed. |
+| AI-forbrug | `fly logs \| grep ai-cache`. `hit` er et svar fra den fælles cache, `miss` er et kald til Anthropic. Forældre i samme klasse bør give ét `miss` og resten `hit` pr. ændret ugeplan. Porten kan flyttes med `AI_PROXY_PORT` (standard 9191, kun 127.0.0.1). |
 | Rotér `MASTER_KEY` | Sæt den nye som `MASTER_KEY` og den gamle som `MASTER_KEY_OLD`. Ved næste start genkrypteres alt. Fjern derefter `MASTER_KEY_OLD`. |
 | Skift invitationskode | `fly secrets set INVITE_CODE=...`. Eksisterende brugere påvirkes ikke. |
 | Opdatér fskintra | Dependabot laver en PR for submodulet. Alternativt `git -C vendor/fskintra fetch && git -C vendor/fskintra checkout <tag>` og commit. |

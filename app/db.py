@@ -95,6 +95,15 @@ MIGRATIONS = [
     '''
     ALTER TABLE tenants ADD COLUMN inactive_warned_at INTEGER;
     ''',
+    # 5: fælles cache for AI-svar (se aiproxy.py). Nøglen er SHA-256 af
+    # forespørgslen - ingen kobling til en forælder
+    '''
+    CREATE TABLE ai_cache (
+        key TEXT PRIMARY KEY,
+        response TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+    );
+    ''',
 ]
 
 _local = threading.local()

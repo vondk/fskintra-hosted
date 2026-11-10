@@ -11,7 +11,7 @@ import os
 import random
 import threading
 
-from . import auth, jobs, retention, tenants
+from . import aiproxy, auth, jobs, retention, tenants
 
 log = logging.getLogger(__name__)
 
@@ -105,6 +105,7 @@ class Scheduler(threading.Thread):
             self._last_slot = slot
             self.cycle(skip=ran)
             auth.housekeeping(conn)
+            aiproxy.prune(conn)
             try:
                 retention.sweep(self.ctx)
             except Exception:  # må ikke stoppe planlæggeren

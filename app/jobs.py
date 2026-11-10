@@ -1,5 +1,6 @@
 """Kørsler for en forælder og håndtering af resultatet (pause, mails)."""
 
+import dataclasses
 import logging
 
 from . import mails, runner, tenants
@@ -48,7 +49,14 @@ def execute(ctx, tenant_id, kind, lock_timeout=-1):
         tenants.update(conn, tenant_id, status='paused',
                        pause_reason='login')
         return None
-    result = runner.run(ctx.settings, tenant_id, profile, kind, lock_timeout)
+    # AI går gennem den fælles cache: fskintra får et engangstoken i
+    # stedet for nøglen, som først bruges, hvis svaret ikke findes i cachen
+    with ctx.ai_proxy.session(profile.ai_key) as token:
+        if token:
+            profile = dataclasses.replace(profile, ai_key=token,
+                                          ai_base_url=ctx.ai_proxy.url)
+        result = runner.run(ctx.settings, tenant_id, profile, kind,
+                            lock_timeout)
     if result is None:
         return None
     # Forælderen kan være slettet mens kørslen stod på

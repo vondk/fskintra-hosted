@@ -47,6 +47,8 @@ class Profile:
     sections: list
     ai_key: str = ''
     ai_model: str = ''
+    # Med en adresse er ai_key et engangstoken til aiproxy.py
+    ai_base_url: str = ''
 
 
 @dataclass
@@ -117,6 +119,8 @@ def build_env(settings, tenant_id, profile):
     if profile.ai_key:
         env['FSKINTRA_ANTHROPIC_API_KEY'] = profile.ai_key
         env['FSKINTRA_AI_MODEL'] = profile.ai_model or settings.shared_ai_model
+        if profile.ai_base_url:
+            env['FSKINTRA_AI_BASE_URL'] = profile.ai_base_url
     if 'LOCPATH' in os.environ:  # kun til lokale tests uden systemlocale
         env['LOCPATH'] = os.environ['LOCPATH']
     return env

@@ -16,6 +16,8 @@ skolen eller itslearning. Fejl kan meldes på
       <td data-label="Hvordan">Kodeordet er krypteret med AES-256-GCM. Nøglen ligger ikke i databasen. Slettes med kontoen</td></tr>
   <tr><td>Egen API-nøgle (valgfri)</td><td data-label="Formål">AI-resuméer på din egen regning</td>
       <td data-label="Hvordan">Krypteret på samme måde. Vælger du i stedet tjenestens fælles nøgle, gemmes der ingen nøgle for dig</td></tr>
+  <tr><td>AI-svar på ugeplaner (kun med AI slået til)</td><td data-label="Formål">Undgå at spørge om den samme ugeplan for hver forælder i klassen</td>
+      <td data-label="Hvordan">I databasen uden kobling til dig. Slettes efter 14 dage</td></tr>
   <tr><td>Hentede sider og billeder fra ForældreIntra</td><td data-label="Formål">Undgå at hente det samme igen</td>
       <td data-label="Hvordan">På krypteret disk. Slettes automatisk efter {{ retention_days }} dage, og straks hvis kontoen slettes</td></tr>
   <tr><td>Login-tilstand mod ForældreIntra (cookies)</td><td data-label="Formål">Undgå at logge ind forfra ved hver hentning</td>
@@ -43,10 +45,13 @@ skolen eller itslearning. Fejl kan meldes på
   <li><strong>Mailudbyderen</strong> ({{ mail_host }}) sender mails til dig
   og ser derfor modtager, emne og indhold af de mails, den leverer.</li>
   <li><strong>Anthropic</strong> modtager kun noget, hvis du slår AI-resuméer
-  til. Det er teksten fra ugeplaner, inklusive børnenes fornavne, og den
-  behandles uden for EU. Den sendes, når en ugeplan er ændret, og når
-  overblikket skal laves igen (højst en gang om dagen, hvis intet er
-  ændret). AI er slået fra, indtil du selv vælger det og giver
+  til. Det er teksten fra ugeplaner, som den står på ForældreIntra, og den
+  behandles uden for EU. Dit barns navn sendes ikke med, men læreren kan
+  have skrevet navne i selve ugeplanen. Teksten sendes kun, når en ugeplan
+  er ny eller ændret. Ugeplanen er den samme for hele klassen, så svaret
+  gemmes i op til 14 dage og genbruges til andre forældre, der har præcis
+  den samme ugeplan og også har slået AI til. Det gemte svar er ikke koblet
+  til dig. AI er slået fra, indtil du selv vælger det og giver
   samtykke.</li>
 </ul>
 <p>Laver du et kalenderlink og tilføjer det i fx Google Kalender eller

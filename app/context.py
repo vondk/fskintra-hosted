@@ -5,6 +5,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 from . import db, mails, tenants
+from .aiproxy import AiProxy
 from .crypto import Crypto
 from .mailer import Mailer
 
@@ -40,6 +41,8 @@ class Context:
         self.crypto = Crypto(settings.master_key, settings.master_key_old)
         self.mailer = mailer or Mailer(settings.smtp)
         self.validate_ai_key = ai_key_validator or validate_anthropic_key
+        # Startes i wsgi.py. Indtil da får kørslerne nøglen direkte
+        self.ai_proxy = AiProxy(self.db)
         os.makedirs(settings.tenants_dir, mode=0o700, exist_ok=True)
         conn = self.db()
         db.migrate(conn)
