@@ -67,7 +67,7 @@ UPDATABLE = frozenset((
     'password_enc', 'children', 'sections', 'ai_mode', 'ai_key_enc',
     'ai_model', 'needs_catchup', 'run_requested', 'fail_count',
     'last_run_at', 'last_exit', 'ics_token_hash', 'ics_token_enc',
-    'ics_created_at'))
+    'ics_created_at', 'inactive_warned_at'))
 
 
 def update(conn, tenant_id, **fields):

@@ -91,6 +91,10 @@ MIGRATIONS = [
     ALTER TABLE tenants ADD COLUMN ics_created_at INTEGER;
     CREATE UNIQUE INDEX tenants_ics_token ON tenants (ics_token_hash);
     ''',
+    # 4: hvornår forælderen sidst fik varsel om, at en inaktiv konto slettes
+    '''
+    ALTER TABLE tenants ADD COLUMN inactive_warned_at INTEGER;
+    ''',
 ]
 
 _local = threading.local()
