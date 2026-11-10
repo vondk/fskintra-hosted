@@ -50,8 +50,10 @@ MESSAGES = {
                'længere.',
     'ics_removed': 'Kalenderlinket er slået fra.',
 }
-# Sider med en Opdatér-knap (en web app har ingen genindlæs-knap)
-REFRESH_PAGES = ('overblik', 'status')
+# Sider med en Opdatér-knap (en web app har ingen genindlæs-knap). Faste
+# adresser, så /opdater aldrig sender videre til noget fra formularen
+REFRESH_TARGETS = {'overblik': '/overblik?m=updated',
+                   'status': '/status?m=updated'}
 # Vises ved kalenderafsnittet og ikke øverst på siden
 CALENDAR_MESSAGES = ('ics_created', 'ics_new', 'ics_removed')
 
@@ -416,10 +418,10 @@ def create_public_app(ctx):
         # POST og redirect i stedet for et link til siden selv: et link til
         # den adresse, man står på, genindlæser i Safari uden at flytte
         # siden, så et tryk ligner ingenting
-        page = request.form.get('side', '')
-        if page not in REFRESH_PAGES:
+        target = REFRESH_TARGETS.get(request.form.get('side', ''))
+        if target is None:
             abort(400)
-        return redirect('/%s?m=updated' % page, 303)
+        return redirect(target, 303)
 
     @app.get('/overblik')
     @login_required
