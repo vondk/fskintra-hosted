@@ -506,3 +506,31 @@ def test_migration_adds_the_calendar_columns(tmp_path):
         conn.execute('UPDATE tenants SET ics_token_hash = ? WHERE id = ?',
                      ('h', '1' * 32))
     conn.close()
+
+
+def test_copy_button_is_the_only_script(client, ctx):
+    '''Kopiér-knappen kræver JavaScript. Den er skjult, til scriptet har
+    vist den, så siden virker uden - og scriptet er en fil, ikke inline'''
+    signup(client, ctx)
+    save_settings(client)
+    assert '<script' not in client.get('/status').data.decode('utf-8')
+    assert '<script' not in client.get('/overblik').data.decode('utf-8')
+    assert post(client, '/kalender/nyt').status_code == 303
+    r = client.get('/status')
+    html = r.data.decode('utf-8')
+    m = re.search(r'<script src="(/static/copy\.js\?v=[0-9a-f]{12})" defer>'
+                  r'</script>', html)
+    assert m and html.count('<script') == 1
+    assert re.search(r'<input type="text" id="ics-url" class="copy" readonly',
+                     html)
+    assert re.search(r'<button type="button"[^>]*data-copy-from="ics-url"'
+                     r'[^>]*\shidden>Kopiér link</button>', html)
+    assert 'id="ics-url-status" role="status"' in html
+    # Ingen inline-handlere, og CSP tillader kun sidens egne filer
+    assert not re.search(r'\son[a-z]+\s*=', html)
+    csp = r.headers['Content-Security-Policy']
+    assert "script-src 'self';" in csp and 'unsafe' not in csp
+    js = client.get(m.group(1))
+    assert js.status_code == 200
+    assert js.mimetype in ('text/javascript', 'application/javascript')
+    assert js.headers['X-Content-Type-Options'] == 'nosniff'

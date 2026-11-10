@@ -128,7 +128,7 @@ def consume_code(conn, nonce, code, purposes):
 def repeat_code(conn, nonce, code, purposes):
     '''Koden er lige brugt, og den samme browser sender den igen.
 
-    Siden har ingen JavaScript, så et dobbelttryk på knappen sender
+    Formularer sendes uden JavaScript, så et dobbelttryk på knappen sender
     formularen to gange. Browseren dropper så det første svar - det med
     session-cookien - og viser det andet, som ellers ville være "forkert
     kode". Det kræver stadig cookien fra browseren, der bad om koden, og

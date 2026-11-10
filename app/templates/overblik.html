@@ -2,6 +2,8 @@
 {% block title %}Overblik{% endblock %}
 {% block content %}
 <h1>Overblik</h1>
+{% if msg %}<p class="flash" role="status">{{ msg }}
+{%- if view and view.updated %} Senest hentet fra ForældreIntra {{ view.updated }}.{% endif %}</p>{% endif %}
 {% if tenant.status == 'new' %}
 <p class="warn">Du mangler at angive dit login til ForældreIntra.
 <a href="/settings">Angiv login</a></p>
@@ -92,7 +94,7 @@ Slå "Ugeplaner" til under <a href="/settings">Indstillinger</a>.</p>
 </section>
 {% endif %}
 
-<p class="hint updated">{% if view.updated %}Opdateret {{ view.updated }}{% endif %}
+<p class="hint updated">{% if view.updated %}Senest hentet {{ view.updated }}{% endif %}
 {%- if view.ai %}{% if view.updated %} · {% endif %}AI-resumé{% endif %}</p>
 {% if not tenant.ics_token_hash %}
 <p class="hint">Vil du have det i din kalender?
@@ -100,6 +102,11 @@ Slå "Ugeplaner" til under <a href="/settings">Indstillinger</a>.</p>
 {% endif %}
 {% endif %}
 {# En web app har ingen genindlæs-knap #}
-<div class="buttons app-only"><a class="button secondary" href="/overblik">Opdatér</a></div>
+<div class="buttons app-only">
+  <form method="post" action="/opdater">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="side" value="overblik">
+    <button type="submit" class="secondary">Opdatér</button></form>
+</div>
 {% endif %}
 {% endblock %}

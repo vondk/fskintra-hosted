@@ -50,6 +50,8 @@ MESSAGES = {
                'længere.',
     'ics_removed': 'Kalenderlinket er slået fra.',
 }
+# Sider med en Opdatér-knap (en web app har ingen genindlæs-knap)
+REFRESH_PAGES = ('overblik', 'status')
 # Vises ved kalenderafsnittet og ikke øverst på siden
 CALENDAR_MESSAGES = ('ics_created', 'ics_new', 'ics_removed')
 
@@ -400,6 +402,25 @@ def create_public_app(ctx):
         tenants.audit(conn(), g.tenant['id'], 'Logget ud overalt')
         return start_session(g.tenant['id'], '/status')
 
+    def refreshed(what):
+        '''Kvittering for et tryk på Opdatér - eller None. Uden den ligner
+        et tryk ingenting, når indholdet er det samme som før'''
+        if request.args.get('m') != 'updated':
+            return None
+        return '%s er opdateret kl. %s.' % (
+            what, datetime.datetime.now().strftime('%H:%M:%S'))
+
+    @app.post('/opdater')
+    @login_required
+    def refresh():
+        # POST og redirect i stedet for et link til siden selv: et link til
+        # den adresse, man står på, genindlæser i Safari uden at flytte
+        # siden, så et tryk ligner ingenting
+        page = request.form.get('side', '')
+        if page not in REFRESH_PAGES:
+            abort(400)
+        return redirect('/%s?m=updated' % page, 303)
+
     @app.get('/overblik')
     @login_required
     def overview_page():
@@ -409,7 +430,7 @@ def create_public_app(ctx):
         if data is not None:
             view = overview.view(data, datetime.date.today(), mtime)
         return render_template(
-            'overblik.html', view=view,
+            'overblik.html', view=view, msg=refreshed('Overblikket'),
             weekplans='pln' in (tenants.sections(t) or DEFAULT_SECTIONS),
             pause_reason=PAUSE_REASONS.get(t['pause_reason'] or ''))
 
@@ -430,7 +451,7 @@ def create_public_app(ctx):
     def status():
         t = g.tenant
         m = request.args.get('m', '')
-        text = MESSAGES.get(m)
+        text = MESSAGES.get(m) or refreshed('Siden')
         in_calendar = m in CALENDAR_MESSAGES
         return render_template(
             'status.html', msg=None if in_calendar else text,
