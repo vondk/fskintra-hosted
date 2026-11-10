@@ -11,7 +11,7 @@ import os
 import random
 import threading
 
-from . import auth, jobs, tenants
+from . import auth, jobs, retention, tenants
 
 log = logging.getLogger(__name__)
 
@@ -105,6 +105,10 @@ class Scheduler(threading.Thread):
             self._last_slot = slot
             self.cycle(skip=ran)
             auth.housekeeping(conn)
+            try:
+                retention.sweep(self.ctx)
+            except Exception:  # må ikke stoppe planlæggeren
+                log.exception('Fejl i oprydningen')
 
     def cycle(self, skip=()):
         '''Kør alle aktive, længst siden først. Fejlede catch-ups prøves

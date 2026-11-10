@@ -51,8 +51,11 @@ Fly Machine (arn), non-root
   det kan vises igen. Det kan fornyes eller slås fra.
 * **Afvist login** sætter forælderen på pause med det samme, så kontoen hos
   skolen ikke låses.
-* **Dataminimering:** Der gemmes ingen kopier af sendte mails, og cachen
-  slettes efter 30 dage.
+* **Dataminimering:** Der gemmes ingen kopier af sendte mails. Cachen
+  slettes efter 30 dage, log efter højst 30 dage, og ugeplaner og seneste
+  ændring efter 14 dage. Pauserede forældre mister hentede filer efter 30
+  dage og hele kontoen efter 90 (med varsel på mail). Ufærdige tilmeldinger
+  slettes efter 7 dage. Se `app/retention.py`.
 * **Supply chain:** Afhængigheder er låst med hashes, og base-image og
   actions er låst på digest/SHA. Dependabot, CodeQL, bandit og pip-audit
   kører i CI.

@@ -7,9 +7,11 @@
 * Kodeordet fjernes fra den log-hale der gemmes.
 """
 
+import datetime
 import json
 import os
 import resource
+import shutil
 import signal
 # Kun en fast kommando uden shell, se _run
 import subprocess  # nosec B404
@@ -187,6 +189,7 @@ def _run(settings, tenant_id, profile, kind):
 
     if kind != 'check':
         prune_cache(env['HOME'], settings.cache_retention_days)
+        prune_state(env['HOME'])
 
     log_tail = _scrub(err.decode('utf-8', 'replace'), profile)[-LOG_TAIL:]
     return RunResult(kind=kind, started_at=int(started),
@@ -216,3 +219,61 @@ def prune_cache(home, days):
                 os.rmdir(dirpath)  # kun hvis tom
             except OSError:
                 pass
+
+
+STATE_CHANGE_DAYS = 14
+# Det fskintra skriver uden for cache/: state/ (ugeplaner og seneste ændring),
+# msg/ (markeringer af sendte mails). overblik.json er overblikket
+PURGE_DIRS = ('cache', 'state', 'msg')
+
+
+def prune_state(home, days=STATE_CHANGE_DAYS):
+    '''fskintra fjerner selv ugeplaner 14 dage efter ugens udløb, men lader
+    "seneste ændring" pr. barn (ændringsliste og AI-resumé med børnenes navne)
+    stå, til næste ændring overskriver den. Den slettes her efter `days` dage.
+    Rører kun state.json i version 1 og skriver den atomisk'''
+    path = os.path.join(home, 'state', 'state.json')
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return False
+    if not isinstance(data, dict) or data.get('version') != 1:
+        return False
+    changes = data.get('last_change')
+    if not isinstance(changes, dict):
+        return False
+    limit = (datetime.datetime.now() -
+             datetime.timedelta(days=days)).isoformat(timespec='seconds')
+    old = [k for k, v in changes.items()
+           if not isinstance(v, dict) or str(v.get('when') or '') < limit]
+    if not old:
+        return False
+    for k in old:
+        del changes[k]
+    tmp = path + '.tmp'
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=1, sort_keys=True)
+    os.replace(tmp, path)
+    return True
+
+
+def purge_files(home):
+    '''Slet alt, fskintra har hentet og gemt for forælderen: cache (også
+    browser-tilstanden), ugeplaner, markeringer af sendte mails og
+    overblikket. True hvis noget blev slettet'''
+    found = False
+    for name in PURGE_DIRS:
+        path = os.path.join(home, name)
+        if os.path.lexists(path):
+            found = True
+            shutil.rmtree(path, ignore_errors=True)
+    path = os.path.join(home, OVERVIEW_FILENAME)
+    if os.path.lexists(path):
+        found = True
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+    return found
