@@ -91,6 +91,7 @@ class Settings:
     trust_fly_client_ip: bool
     admin_port: int
     admin_bind: str
+    ai_proxy_port: int
     # Fly-releasenummer fra entrypoint.sh (fx 'v14'), tomt uden for Fly
     version: str = ''
 
@@ -179,5 +180,7 @@ def load():
         admin_port=int(env.get('ADMIN_PORT', '9090')),
         # '::' = Fly 6PN (IPv6), som `fly proxy` forbinder til
         admin_bind=env.get('ADMIN_BIND', '::'),
+        # Kun på 127.0.0.1 - se aiproxy.py
+        ai_proxy_port=int(env.get('AI_PROXY_PORT', '9191')),
         version=env.get('APP_VERSION', '').strip()[:32],
     )

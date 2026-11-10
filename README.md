@@ -20,6 +20,8 @@ Fly Machine (arn), non-root
 ├─ gunicorn :8080  offentlig app (Flask, server-renderet, uden JavaScript,
 │                  kan installeres som web app via manifest.webmanifest)
 ├─ :9090           admin, ikke eksponeret, kun via `fly proxy`
+├─ 127.0.0.1:9191  AI-cache foran Claude API: forældre med samme ugeplan
+│                  deler ét svar, og fskintra får aldrig API-nøglen
 ├─ planlægger      hver halve time kl. 6-22, én forælder ad gangen
 │   └─ subprocess: vendor/fskintra/fskintra.py  (env kun fra en allowlist)
 ├─ /data/app.db         SQLite, hemmeligheder AES-256-GCM-krypteret
