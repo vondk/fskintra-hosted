@@ -17,9 +17,8 @@ moms for en klasse).
 
 ```
 Fly Machine (arn), non-root
-├─ gunicorn :8080  offentlig app (Flask, server-renderet, virker uden
-│                  JavaScript, kan installeres som web app via
-│                  manifest.webmanifest)
+├─ gunicorn :8080  offentlig app (Flask, server-renderet, uden JavaScript,
+│                  kan installeres som web app via manifest.webmanifest)
 ├─ :9090           admin, ikke eksponeret, kun via `fly proxy`
 ├─ planlægger      hver halve time kl. 6-22, én forælder ad gangen
 │   └─ subprocess: vendor/fskintra/fskintra.py  (env kun fra en allowlist)
@@ -45,8 +44,7 @@ Fly Machine (arn), non-root
   modtageren selv.
 * **Skoler** vælges fra en allowlist (`*.m.skoleintra.dk`). Det forhindrer
   SSRF.
-* **Web:** CSRF, strict CSP uden inline-scripts (eneste script er
-  kopiér-knappen til kalenderlinket), HSTS og rate limits. Der er ingen
+* **Web:** CSRF, strict CSP uden JS, HSTS og rate limits. Der er ingen
   access-log, fordi URL'er kan indeholde tokens.
 * **Kalenderlinket** er valgfrit og virker som et kodeord til kalenderen
   (kun læsning). Der gemmes en SHA-256 til opslag og en krypteret kopi, så

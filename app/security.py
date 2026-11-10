@@ -9,11 +9,9 @@ from flask import abort, g, request
 
 from .auth import TOKEN_RE
 
-# script-src 'self': kun sidens egne filer i /static/ (kopiér-knappen).
-# Inline-scripts og eval er stadig forbudt
-CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; "
-       "img-src 'self'; manifest-src 'self'; form-action 'self'; "
-       "frame-ancestors 'none'; base-uri 'none'")
+CSP = ("default-src 'none'; style-src 'self'; img-src 'self'; "
+       "manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; "
+       "base-uri 'none'")
 
 
 def _origin(url):

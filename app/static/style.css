@@ -134,12 +134,13 @@ select { padding-right: 2.25rem; background-repeat: no-repeat;
 input:focus, select:focus { outline: none; border-color: var(--btn);
   box-shadow: 0 0 0 3px var(--focus); }
 input::placeholder { color: var(--muted); opacity: .8; }
-/* Et link, der skal kopieres. Knappen vises af copy.js */
-/* Skriften må ikke være under 16px: så zoomer iOS ind ved fokus */
-input.copy { background: var(--code); border-color: var(--line-strong);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-.copy-row { display: flex; flex-wrap: wrap; gap: .5rem; margin: -.55rem 0 .9rem; }
-.copy-row input { flex: 1 1 12rem; min-width: 0; margin-top: 0; }
+/* Et link, der skal kopieres (ingen JavaScript): et rigtigt link, så et
+   langt tryk eller højreklik giver "Kopiér link" */
+.linkbox { margin: .9rem 0 .5rem; font-weight: 500; }
+a.copy { display: block; margin-top: .35rem; padding: .6rem .75rem;
+  border: 1px solid var(--line-strong); border-radius: 8px;
+  background: var(--code); font: 400 .95rem/1.45 ui-monospace, SFMono-Regular,
+  Menlo, Consolas, monospace; overflow-wrap: anywhere; }
 label.check { display: flex; gap: .7rem; align-items: flex-start; margin: 0;
   padding: .55rem 0; min-height: 44px; font-weight: 400; cursor: pointer; }
 label.check input { flex: none; width: 1.25rem; height: 1.25rem;
@@ -147,7 +148,6 @@ label.check input { flex: none; width: 1.25rem; height: 1.25rem;
 .choices { margin: .25rem 0 .5rem; }
 
 /* Knapper */
-[hidden] { display: none !important; }
 button, .button { display: inline-flex; align-items: center; justify-content: center;
   gap: .4rem; min-height: 44px; padding: .6rem 1.15rem; font: inherit;
   font-weight: 600; line-height: 1.2; text-align: center; text-decoration: none;
@@ -281,7 +281,7 @@ details.danger-zone[open] { padding-bottom: 1rem; }
   .browser-only { display: none !important; }
   .site-header { position: sticky; top: 0; z-index: 2; }
   body { -webkit-user-select: none; user-select: none; }
-  input, textarea, pre, code, dd, .rows, .log { -webkit-user-select: text; user-select: text; }
+  input, textarea, pre, code, dd, .rows, .log, a.copy { -webkit-user-select: text; user-select: text; }
 }
 .site-header { padding-top: env(safe-area-inset-top); }
 details.install { margin-top: 1.5rem; }

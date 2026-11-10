@@ -21,9 +21,6 @@ def test_security_headers_on_every_response(client, path):
     h = r.headers
     assert "default-src 'none'" in h['Content-Security-Policy']
     assert "frame-ancestors 'none'" in h['Content-Security-Policy']
-    # Kun sidens egne scripts: ingen inline og ingen eval
-    assert "script-src 'self';" in h['Content-Security-Policy']
-    assert 'unsafe' not in h['Content-Security-Policy']
     assert h['X-Frame-Options'] == 'DENY'
     assert h['X-Content-Type-Options'] == 'nosniff'
     assert h['Referrer-Policy'] == 'same-origin'
