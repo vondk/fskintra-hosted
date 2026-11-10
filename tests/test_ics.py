@@ -275,7 +275,11 @@ def test_status_page_shows_the_link_and_how_to_subscribe(client, ctx):
     token = _new_link(client)
     text = client.get('/status?m=ics_created').get_data(as_text=True)
     assert 'Kalenderlinket er klar.' in text
-    assert 'value="https://hosted.example/kalender/%s.ics"' % token in text
+    # Et rigtigt link: kopieres med et langt tryk eller højreklik, uden
+    # JavaScript og uden at markere teksten
+    url = 'https://hosted.example/kalender/%s.ics' % token
+    assert '<a class="copy" href="%s">%s</a>' % (url, url) in text
+    assert 'Kopiér link' in text and '<script' not in text
     # webcals (https) - webcal ville sende tokenet ukrypteret først
     assert 'href="webcals://hosted.example/kalender/%s.ics"' % token in text
     assert 'webcal://' not in text

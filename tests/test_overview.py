@@ -286,7 +286,7 @@ def test_page_after_a_run(client, ctx):
     assert 'Anna 3B</h2>' in text and 'Lektier og afleveringer</h3>' in text
     assert '<span class="day soon">I morgen</span>' in text
     assert '<strong>Dansk:</strong> Læs side 12-14' in text
-    assert 'Opdateret ' in text and 'AI-resumé' not in text
+    assert 'Senest hentet ' in text and 'AI-resumé' not in text
     assert 'Vis hele teksten' not in text and 'Seneste ændring' not in text
     assert 'class="warn"' not in text
 

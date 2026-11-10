@@ -87,7 +87,7 @@ def test_cross_origin_post_is_rejected(client, ctx):
     ('get', '/export'),
     ('post', '/delete'), ('post', '/settings'), ('post', '/run-now'),
     ('post', '/recipients/add'), ('post', '/kalender/nyt'),
-    ('post', '/kalender/slet')])
+    ('post', '/kalender/slet'), ('post', '/opdater')])
 def test_protected_routes_require_login(client, method, path):
     if method == 'get':
         r = client.get(path)
@@ -403,6 +403,30 @@ def test_check_login_has_short_timeout(ctx):
 
 
 # Web app og login med engangskode
+
+def test_refresh_button_gives_a_receipt(client, ctx):
+    '''En web app har ingen genindlæs-knap. Et link til siden selv
+    genindlæser i Safari uden synlig forskel, så Opdatér er en POST, der
+    kvitterer med klokkeslættet'''
+    signup(client, ctx)
+    save_settings(client)
+    for page, what in (('overblik', 'Overblikket'), ('status', 'Siden')):
+        html = client.get('/' + page).data.decode('utf-8')
+        assert '<form method="post" action="/opdater"' in html
+        assert 'name="side" value="%s"' % page in html
+        assert 'er opdateret kl.' not in html
+        r = post(client, '/opdater', {'side': page})
+        assert r.status_code == 303
+        assert r.headers['Location'] == '/%s?m=updated' % page
+        html = client.get(r.headers['Location']).data.decode('utf-8')
+        assert re.search(r'role="status">%s er opdateret kl\. '
+                         r'\d\d:\d\d:\d\d\.' % what, html)
+    # Kun de to sider - aldrig en adresse fra formularen
+    assert post(client, '/opdater',
+                {'side': 'https://ond.example'}).status_code == 400
+    assert post(client, '/opdater').status_code == 400
+    assert client.get('/opdater').status_code == 405
+
 
 def test_web_app_manifest(client):
     page = client.get('/').data.decode('utf-8')
