@@ -91,7 +91,11 @@ MIGRATIONS = [
     ALTER TABLE tenants ADD COLUMN ics_created_at INTEGER;
     CREATE UNIQUE INDEX tenants_ics_token ON tenants (ics_token_hash);
     ''',
-    # 4: fælles cache for AI-svar (se aiproxy.py). Nøglen er SHA-256 af
+    # 4: hvornår forælderen sidst fik varsel om, at en inaktiv konto slettes
+    '''
+    ALTER TABLE tenants ADD COLUMN inactive_warned_at INTEGER;
+    ''',
+    # 5: fælles cache for AI-svar (se aiproxy.py). Nøglen er SHA-256 af
     # forespørgslen - ingen kobling til en forælder
     '''
     CREATE TABLE ai_cache (

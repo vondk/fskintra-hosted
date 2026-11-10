@@ -87,6 +87,8 @@ class Settings:
     run_hours: tuple
     run_interval_minutes: int
     cache_retention_days: int
+    inactive_account_days: int
+    unfinished_signup_days: int
     run_timeout_seconds: int
     trust_fly_client_ip: bool
     admin_port: int
@@ -175,6 +177,13 @@ def load():
                                                  '60'))),
         cache_retention_days=max(1, int(env.get('CACHE_RETENTION_DAYS',
                                                 '30'))),
+        # Konti uden aktiv hentning (pause) slettes efter så mange dage. Min.
+        # 30, så varslet (14 dage før) og cachen (30 dage) når at virke
+        inactive_account_days=max(30, int(env.get('INACTIVE_ACCOUNT_DAYS',
+                                                  '90'))),
+        # Tilmeldinger, hvor ForældreIntra-login aldrig blev gemt
+        unfinished_signup_days=max(1, int(env.get('UNFINISHED_SIGNUP_DAYS',
+                                                  '7'))),
         run_timeout_seconds=int(env.get('RUN_TIMEOUT_SECONDS', '600')),
         trust_fly_client_ip=env.get('TRUST_FLY_CLIENT_IP', '1') == '1',
         admin_port=int(env.get('ADMIN_PORT', '9090')),

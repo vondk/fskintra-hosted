@@ -97,6 +97,22 @@ def login_failed(settings_url):
         accent=AMBER)
 
 
+def inactive_warning(settings_url, days_left, delete_days):
+    return dict(
+        subject='Din konto slettes om %d dage' % days_left,
+        preheader='Hentningen har stået på pause i lang tid.',
+        heading='Din konto slettes om %d dage' % days_left,
+        paragraphs=[
+            'Hentningen har stået på pause i et stykke tid. Konti, der er '
+            'på pause i %d dage, slettes automatisk, og det gælder også '
+            'brugernavn, kodeord og alt, vi har hentet.' % delete_days,
+            'Vil du beholde kontoen, så opdatér dit kodeord eller genoptag '
+            'hentningen under Indstillinger. Ellers behøver du ikke gøre '
+            'noget.'],
+        button_label='Gå til indstillinger', button_url=settings_url,
+        accent=AMBER)
+
+
 def admin_login(url):
     return dict(
         subject='Admin: log ind',

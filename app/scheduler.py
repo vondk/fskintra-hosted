@@ -11,7 +11,7 @@ import os
 import random
 import threading
 
-from . import aiproxy, auth, jobs, tenants
+from . import aiproxy, auth, jobs, retention, tenants
 
 log = logging.getLogger(__name__)
 
@@ -106,6 +106,10 @@ class Scheduler(threading.Thread):
             self.cycle(skip=ran)
             auth.housekeeping(conn)
             aiproxy.prune(conn)
+            try:
+                retention.sweep(self.ctx)
+            except Exception:  # må ikke stoppe planlæggeren
+                log.exception('Fejl i oprydningen')
 
     def cycle(self, skip=()):
         '''Kør alle aktive, længst siden først. Fejlede catch-ups prøves

@@ -8,34 +8,42 @@ skolen eller itslearning. Fejl kan meldes på
 
 <h2>Hvad gemmes, og hvorfor</h2>
 <table class="stack">
-  <thead><tr><th scope="col">Oplysning</th><th scope="col">Formål</th><th scope="col">Hvordan</th></tr></thead>
+  <thead><tr><th scope="col">Oplysning</th><th scope="col">Formål</th><th scope="col">Hvordan, og hvor længe</th></tr></thead>
   <tbody>
   <tr><td>Din mailadresse og evt. ekstra modtagere</td><td data-label="Formål">Login og levering af mails</td>
-      <td data-label="Hvordan">I databasen på en krypteret disk</td></tr>
+      <td data-label="Hvordan">I databasen på en krypteret disk, så længe kontoen findes</td></tr>
   <tr><td>Brugernavn og kodeord til ForældreIntra</td><td data-label="Formål">Logge ind på dine vegne</td>
-      <td data-label="Hvordan">Kodeordet er krypteret med AES-256-GCM. Nøglen ligger ikke i databasen</td></tr>
-  <tr><td>Egen API-nøgle (valgfri)</td><td data-label="Formål">AI-resuméer på din regning</td>
-      <td data-label="Hvordan">Krypteret på samme måde</td></tr>
+      <td data-label="Hvordan">Kodeordet er krypteret med AES-256-GCM. Nøglen ligger ikke i databasen. Slettes med kontoen</td></tr>
+  <tr><td>Egen API-nøgle (valgfri)</td><td data-label="Formål">AI-resuméer på din egen regning</td>
+      <td data-label="Hvordan">Krypteret på samme måde. Vælger du i stedet tjenestens fælles nøgle, gemmes der ingen nøgle for dig</td></tr>
   <tr><td>AI-svar på ugeplaner (kun med AI slået til)</td><td data-label="Formål">Undgå at spørge om den samme ugeplan for hver forælder i klassen</td>
-      <td data-label="Hvordan">I databasen uden kobling til dig, slettes efter 14 dage</td></tr>
+      <td data-label="Hvordan">I databasen uden kobling til dig. Slettes efter 14 dage</td></tr>
   <tr><td>Hentede sider og billeder fra ForældreIntra</td><td data-label="Formål">Undgå at hente det samme igen</td>
-      <td data-label="Hvordan">På krypteret disk, slettes automatisk efter {{ retention_days }} dage</td></tr>
+      <td data-label="Hvordan">På krypteret disk. Slettes automatisk efter {{ retention_days }} dage, og straks hvis kontoen slettes</td></tr>
+  <tr><td>Login-tilstand mod ForældreIntra (cookies)</td><td data-label="Formål">Undgå at logge ind forfra ved hver hentning</td>
+      <td data-label="Hvordan">På krypteret disk. Bevares, så længe hentningen er aktiv, og slettes efter {{ retention_days }} dages pause eller med kontoen</td></tr>
   <tr><td>Markering af sendte mails</td><td data-label="Formål">Så du ikke får den samme mail to gange</td>
-      <td data-label="Hvordan">Kun et id. Der gemmes ingen kopi af selve mailen</td></tr>
-  <tr><td>Ugeplanernes punkter</td><td data-label="Formål">"Nyt siden sidst" i ugeplan-mails og siden <em>Overblik</em></td>
-      <td data-label="Hvordan">På krypteret disk. Slettes 14 dage efter ugens udløb</td></tr>
+      <td data-label="Hvordan">Kun dato, type og et id. Der gemmes ingen kopi af selve mailen. Markeringerne gemmes, så længe hentningen er aktiv, og slettes efter {{ retention_days }} dages pause eller med kontoen</td></tr>
+  <tr><td>Ugeplanernes punkter og seneste ændring pr. barn</td><td data-label="Formål">"Nyt siden sidst" i ugeplan-mails og siden <em>Overblik</em></td>
+      <td data-label="Hvordan">På krypteret disk. Slettes 14 dage efter ugens udløb, og efter {{ retention_days }} dages pause</td></tr>
   <tr><td>Kalenderlink (valgfrit)</td><td data-label="Formål">Vise lektier, afleveringer og ture i din egen kalender</td>
-      <td data-label="Hvordan">En hash til opslag og en krypteret kopi, så linket kan vises igen. Slettes, når du slår linket fra</td></tr>
+      <td data-label="Hvordan">En hash til opslag og en krypteret kopi, så linket kan vises igen. Slettes, når du slår linket fra, eller med kontoen</td></tr>
   <tr><td>Log over de seneste 10 kørsler og 50 hændelser</td><td data-label="Formål">Fejlfinding</td>
-      <td data-label="Hvordan">Kan indeholde børnenes navne og titler på beskeder. Ingen kodeord</td></tr>
+      <td data-label="Hvordan">Kan indeholde børnenes navne og titler på beskeder. Ingen kodeord. Slettes efter højst 30 dage</td></tr>
+  <tr><td>Login på siden (session)</td><td data-label="Formål">Holde dig logget ind</td>
+      <td data-label="Hvordan">Kun en hash gemmes. Udløber efter 30 dage uden brug og senest efter 90 dage. Slettes ved "Log ud"</td></tr>
+  <tr><td>Selve kontoen</td><td data-label="Formål">Levere tjenesten</td>
+      <td data-label="Hvordan">Gemmes, til du sletter den. En tilmelding, hvor du aldrig gemte dit ForældreIntra-login, slettes efter {{ signup_days }} dage. Står hentningen på pause i {{ inactive_days }} dage, slettes kontoen automatisk, og du får en mail 14 dage før</td></tr>
   </tbody>
 </table>
 
 <h2>Databehandlere</h2>
 <ul>
   <li><strong>Fly.io</strong> driver serveren i Stockholm (EU). Fly.io er et
-  amerikansk firma.</li>
-  <li><strong>Mailudbyderen</strong> sender mails til dig.</li>
+  amerikansk firma. I normal drift indeholder serverloggen kun et kort id, exit-kode og
+  varighed for hver hentning, aldrig adresser, mails eller indhold.</li>
+  <li><strong>Mailudbyderen</strong> ({{ mail_host }}) sender mails til dig
+  og ser derfor modtager, emne og indhold af de mails, den leverer.</li>
   <li><strong>Anthropic</strong> modtager kun noget, hvis du slår AI-resuméer
   til. Det er teksten fra ugeplaner, som den står på ForældreIntra, og den
   behandles uden for EU. Dit barns navn sendes ikke med, men læreren kan
@@ -71,8 +79,9 @@ for EU. Det sker kun, hvis du selv tilføjer linket.</p>
 
 <h2>Dine rettigheder</h2>
 <p>Under <em>Status</em> kan du downloade alle data om dig og slette din
-konto. Sletning sker med det samme. Daglige sikkerhedskopier forsvinder
-efter højst 5 dage. Du kan klage til Datatilsynet.</p>
+konto. Sletning sker med det samme. Daglige sikkerhedskopier af disken forsvinder
+efter højst 5 dage. Hvad mailudbyderen og Anthropic har gemt hos sig, kan
+tjenesten ikke slette. Du kan klage til Datatilsynet.</p>
 
 <h2>Forbehold</h2>
 <p>Tjenesten er uofficiel og kan holde op med at virke, hvis ForældreIntra

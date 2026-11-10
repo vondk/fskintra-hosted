@@ -105,6 +105,7 @@ sendes til `ADMIN_EMAIL`.
 | Skift invitationskode | `fly secrets set INVITE_CODE=...`. Eksisterende brugere påvirkes ikke. |
 | Opdatér fskintra | Dependabot laver en PR for submodulet. Alternativt `git -C vendor/fskintra fetch && git -C vendor/fskintra checkout <tag>` og commit. |
 | Backup/gendannelse | `fly volumes snapshots list <vol-id>`, derefter `fly volumes create data --snapshot-id <id>`. |
+| Opbevaring | `CACHE_RETENTION_DAYS` (30), `INACTIVE_ACCOUNT_DAYS` (90, min. 30) og `UNFINISHED_SIGNUP_DAYS` (7). Ret `privatliv.html`, hvis du ændrer dem. Oprydningen kører i planlæggeren og skriver `Slettede …` i `fly logs`. |
 | Måling af hukommelse | `fly metrics` / Grafana. Peak under 200 MB gør det muligt at prøve 256 MB med swap. |
 
 ## 9. Verifikation efter deploy
