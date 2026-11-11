@@ -5,13 +5,14 @@
 * Eget katalog (0700) pr. forælder via FSKINTRA_ROOT, umask 077.
 * Egen procesgruppe, ressourcegrænser og timeout der dræber hele gruppen.
 * Kodeordet fjernes fra den log-hale der gemmes.
+* Oprydning og sletning af det hentede sker i fskintra selv
+  (FSKINTRA_PRUNE_CACHE_DAYS og --purge) - katalogerne kendes ikke her.
 """
 
-import datetime
 import json
+import logging
 import os
 import resource
-import shutil
 import signal
 # Kun en fast kommando uden shell, se _run
 import subprocess  # nosec B404
@@ -22,6 +23,8 @@ from dataclasses import dataclass
 
 from .overview import FILENAME as OVERVIEW_FILENAME
 from .tenants import TENANT_ID_RE
+
+log = logging.getLogger(__name__)
 
 EXIT_OK = 0
 EXIT_LOGIN_FAILED = 3
@@ -83,10 +86,9 @@ def tenant_dir(settings, tenant_id):
     return path
 
 
-def build_env(settings, tenant_id, profile):
-    '''Miljøet til fskintra - KUN disse variabler'''
-    home = tenant_dir(settings, tenant_id)
-    smtp = settings.smtp
+def base_env(home):
+    '''Det mindste miljø: nok til, at fskintra kan finde sine data
+    (--purge), men uden login'''
     env = {
         'PATH': '/usr/local/bin:/usr/bin:/bin',
         'HOME': home,
@@ -98,6 +100,20 @@ def build_env(settings, tenant_id, profile):
         'PYTHONDONTWRITEBYTECODE': '1',
         'MALLOC_ARENA_MAX': '2',
         'FSKINTRA_ROOT': home,
+        # Overblikket til /overblik og kalenderen (relativ til FSKINTRA_ROOT)
+        'FSKINTRA_OVERVIEW_JSON': OVERVIEW_FILENAME,
+    }
+    if 'LOCPATH' in os.environ:  # kun til lokale tests uden systemlocale
+        env['LOCPATH'] = os.environ['LOCPATH']
+    return env
+
+
+def build_env(settings, tenant_id, profile):
+    '''Miljøet til fskintra - KUN disse variabler'''
+    home = tenant_dir(settings, tenant_id)
+    smtp = settings.smtp
+    env = base_env(home)
+    env.update({
         'FSKINTRA_LOGINTYPE': profile.logintype,
         'FSKINTRA_USERNAME': profile.username,
         'FSKINTRA_PASSWORD': profile.password,
@@ -110,9 +126,10 @@ def build_env(settings, tenant_id, profile):
         'FSKINTRA_SMTP_VERIFY_SSL': 'true' if smtp.verify_ssl else 'false',
         'FSKINTRA_HA_TODO': 'off',
         'FSKINTRA_HA_CALENDAR': 'off',
-        # Overblikket til /overblik og kalenderen (relativ til FSKINTRA_ROOT)
-        'FSKINTRA_OVERVIEW_JSON': OVERVIEW_FILENAME,
-    }
+        # fskintra sletter selv cachede sider/billeder efter så mange dage.
+        # Browser-tilstanden bevares, så login ikke skal gentages
+        'FSKINTRA_PRUNE_CACHE_DAYS': str(settings.cache_retention_days),
+    })
     if smtp.user:
         env['FSKINTRA_SMTP_USER'] = smtp.user
         env['FSKINTRA_SMTP_PASSWORD'] = smtp.password
@@ -121,8 +138,6 @@ def build_env(settings, tenant_id, profile):
         env['FSKINTRA_AI_MODEL'] = profile.ai_model or settings.shared_ai_model
         if profile.ai_base_url:
             env['FSKINTRA_AI_BASE_URL'] = profile.ai_base_url
-    if 'LOCPATH' in os.environ:  # kun til lokale tests uden systemlocale
-        env['LOCPATH'] = os.environ['LOCPATH']
     return env
 
 
@@ -191,10 +206,6 @@ def _run(settings, tenant_id, profile, kind):
         code = EXIT_TIMEOUT
         err += b'\n[afbrudt efter %d sekunder]' % timeout
 
-    if kind != 'check':
-        prune_cache(env['HOME'], settings.cache_retention_days)
-        prune_state(env['HOME'])
-
     log_tail = _scrub(err.decode('utf-8', 'replace'), profile)[-LOG_TAIL:]
     return RunResult(kind=kind, started_at=int(started),
                      duration=round(time.time() - started, 1),
@@ -203,81 +214,32 @@ def _run(settings, tenant_id, profile, kind):
                      log_tail=log_tail)
 
 
-def prune_cache(home, days):
-    '''Slet cachede ForældreIntra-sider/billeder ældre end `days` dage.
-    Browser-tilstanden (*.state) bevares, så login ikke skal gentages'''
-    cache = os.path.join(home, 'cache')
-    limit = time.time() - days * 86400
-    for dirpath, dirnames, filenames in os.walk(cache, topdown=False):
-        for fn in filenames:
-            path = os.path.join(dirpath, fn)
-            if fn.endswith('.state'):
-                continue
-            try:
-                if os.lstat(path).st_mtime < limit:
-                    os.unlink(path)
-            except OSError:
-                pass
-        if dirpath != cache:
-            try:
-                os.rmdir(dirpath)  # kun hvis tom
-            except OSError:
-                pass
+PURGE_TIMEOUT = 60
 
 
-STATE_CHANGE_DAYS = 14
-# Det fskintra skriver uden for cache/: state/ (ugeplaner og seneste ændring),
-# msg/ (markeringer af sendte mails). overblik.json er overblikket
-PURGE_DIRS = ('cache', 'state', 'msg')
-
-
-def prune_state(home, days=STATE_CHANGE_DAYS):
-    '''fskintra fjerner selv ugeplaner 14 dage efter ugens udløb, men lader
-    "seneste ændring" pr. barn (ændringsliste og AI-resumé med børnenes navne)
-    stå, til næste ændring overskriver den. Den slettes her efter `days` dage.
-    Rører kun state.json i version 1 og skriver den atomisk'''
-    path = os.path.join(home, 'state', 'state.json')
-    try:
-        with open(path, encoding='utf-8') as f:
-            data = json.load(f)
-    except (OSError, ValueError):
-        return False
-    if not isinstance(data, dict) or data.get('version') != 1:
-        return False
-    changes = data.get('last_change')
-    if not isinstance(changes, dict):
-        return False
-    limit = (datetime.datetime.now() -
-             datetime.timedelta(days=days)).isoformat(timespec='seconds')
-    old = [k for k, v in changes.items()
-           if not isinstance(v, dict) or str(v.get('when') or '') < limit]
-    if not old:
-        return False
-    for k in old:
-        del changes[k]
-    tmp = path + '.tmp'
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=1, sort_keys=True)
-    os.replace(tmp, path)
-    return True
-
-
-def purge_files(home):
+def purge_files(settings, home):
     '''Slet alt, fskintra har hentet og gemt for forælderen: cache (også
     browser-tilstanden), ugeplaner, markeringer af sendte mails og
-    overblikket. True hvis noget blev slettet'''
-    found = False
-    for name in PURGE_DIRS:
-        path = os.path.join(home, name)
-        if os.path.lexists(path):
-            found = True
-            shutil.rmtree(path, ignore_errors=True)
-    path = os.path.join(home, OVERVIEW_FILENAME)
-    if os.path.lexists(path):
-        found = True
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
-    return found
+    overblikket. True hvis noget blev slettet.
+
+    fskintra sletter selv (--purge) og kender katalogerne. Flaget kræver
+    ikke login, så det virker også for en forælder uden gemt kodeord'''
+    if not os.path.isdir(home):
+        return False
+    cmd = [sys.executable, settings.fskintra_path, '--purge']
+    try:
+        # Fast kommando uden shell, se _run
+        proc = subprocess.run(  # nosec B603
+            cmd, cwd=home, env=base_env(home), stdin=subprocess.DEVNULL,
+            capture_output=True, timeout=PURGE_TIMEOUT, umask=0o077,
+            close_fds=True)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log.warning('Kunne ikke slette hentede data: %r', e)
+        return False
+    if proc.returncode != 0:
+        log.warning('Sletning af hentede data gav exit %d', proc.returncode)
+    try:
+        lines = proc.stdout.decode('utf-8', 'replace').strip().splitlines()
+        return bool(json.loads(lines[-1]).get('purged'))
+    except (ValueError, IndexError, AttributeError):
+        return False
