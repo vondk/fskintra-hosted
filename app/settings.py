@@ -87,6 +87,7 @@ class Settings:
     run_hours: tuple
     run_interval_minutes: int
     cache_retention_days: int
+    marker_retention_days: int
     inactive_account_days: int
     unfinished_signup_days: int
     run_timeout_seconds: int
@@ -177,6 +178,11 @@ def load():
                                                  '60'))),
         cache_retention_days=max(1, int(env.get('CACHE_RETENTION_DAYS',
                                                 '30'))),
+        # Markeringer af sendte mails slettes, når indholdet ikke har været
+        # at se på ForældreIntra i så mange dage. fskintra afviser under 30
+        # (se vendor/fskintra/README.md): for lavt giver gensendte mails
+        marker_retention_days=max(30, int(env.get('MARKER_RETENTION_DAYS',
+                                                  '90'))),
         # Konti uden aktiv hentning (pause) slettes efter så mange dage. Min.
         # 30, så varslet (14 dage før) og cachen (30 dage) når at virke
         inactive_account_days=max(30, int(env.get('INACTIVE_ACCOUNT_DAYS',

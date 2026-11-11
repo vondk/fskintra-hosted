@@ -129,6 +129,9 @@ def build_env(settings, tenant_id, profile):
         # fskintra sletter selv cachede sider/billeder efter så mange dage.
         # Browser-tilstanden bevares, så login ikke skal gentages
         'FSKINTRA_PRUNE_CACHE_DAYS': str(settings.cache_retention_days),
+        # ... og markeringer af sendte mails, når indholdet ikke har været
+        # at se på ForældreIntra i så mange dage
+        'FSKINTRA_PRUNE_MARKERS_DAYS': str(settings.marker_retention_days),
     })
     if smtp.user:
         env['FSKINTRA_SMTP_USER'] = smtp.user
