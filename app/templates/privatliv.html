@@ -23,7 +23,7 @@ skolen eller itslearning. Fejl kan meldes på
   <tr><td>Login-tilstand mod ForældreIntra (cookies)</td><td data-label="Formål">Undgå at logge ind forfra ved hver hentning</td>
       <td data-label="Hvordan">På krypteret disk. Bevares, så længe hentningen er aktiv, og slettes efter {{ retention_days }} dages pause eller med kontoen</td></tr>
   <tr><td>Markering af sendte mails</td><td data-label="Formål">Så du ikke får den samme mail to gange</td>
-      <td data-label="Hvordan">Kun dato, type og et id. Der gemmes ingen kopi af selve mailen. Markeringerne gemmes, så længe hentningen er aktiv, og slettes efter {{ retention_days }} dages pause eller med kontoen</td></tr>
+      <td data-label="Hvordan">Kun dato, type og et id &ndash; for billedalbum desuden en liste med hashværdier af de sendte billeder. Der gemmes ingen kopi af selve mailen. En markering slettes, når indholdet ikke har været at se på ForældreIntra i {{ marker_days }} dage, efter {{ retention_days }} dages pause eller med kontoen</td></tr>
   <tr><td>Ugeplanernes punkter og seneste ændring pr. barn</td><td data-label="Formål">"Nyt siden sidst" i ugeplan-mails og siden <em>Overblik</em></td>
       <td data-label="Hvordan">På krypteret disk. Slettes 14 dage efter ugens udløb, og efter {{ retention_days }} dages pause</td></tr>
   <tr><td>Kalenderlink (valgfrit)</td><td data-label="Formål">Vise lektier, afleveringer og ture i din egen kalender</td>

@@ -1,12 +1,17 @@
 import json
 import os
 import stat
+import subprocess
+import sys
 import time
 
 import pytest
 
-from app import jobs, runner, tenants
+from app import jobs, runner, settings as settings_mod, tenants
 from conftest import HOST, with_settings
+
+REAL = os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), 'vendor', 'fskintra', 'fskintra.py')
 
 
 def _tenant(ctx, ai_mode='off', ai_key=None, username='petjen'):
@@ -136,8 +141,35 @@ def test_cache_retention_is_handed_to_fskintra(ctx):
     with_settings(ctx, cache_retention_days=17)
     env = runner.build_env(ctx.settings, tid, jobs.profile_for(ctx, t))
     assert env['FSKINTRA_PRUNE_CACHE_DAYS'] == '17'
-    # Markeringer af sendte mails ryddes ikke (kræver en aktiv beslutning)
-    assert 'FSKINTRA_PRUNE_MARKERS_DAYS' not in env
+
+
+def test_marker_retention_is_handed_to_fskintra(ctx):
+    tid, t = _tenant(ctx)
+    env = runner.build_env(ctx.settings, tid, jobs.profile_for(ctx, t))
+    assert env['FSKINTRA_PRUNE_MARKERS_DAYS'] == '90'      # standard
+
+
+def test_marker_retention_is_never_below_fskintras_minimum(env, monkeypatch):
+    '''fskintra afviser under 30 dage og stopper - så ville ingen få mail'''
+    for value, want in (('7', 30), ('30', 30), ('365', 365)):
+        monkeypatch.setenv('MARKER_RETENTION_DAYS', value)
+        assert settings_mod.load().marker_retention_days == want
+
+
+def test_real_fskintra_accepts_the_retention_settings(ctx):
+    '''Kontrakten med submodulet: de dage, driftslaget giver videre, er
+    gyldige - ellers stopper hver kørsel med exit 2'''
+    tid, t = _tenant(ctx)
+    env = runner.build_env(ctx.settings, tid, jobs.profile_for(ctx, t))
+    code = ('import sys; sys.path.insert(0, sys.argv[1]); import fskintra; '
+            'from skoleintra import config; config.parseArgs([]); '
+            'o = config.options; '
+            'print(o.prunecachedays, o.prunemarkersdays)')
+    out = subprocess.run(
+        [sys.executable, '-c', code, os.path.dirname(REAL)], env=env,
+        capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.split() == ['30', '90']
 
 
 def test_runner_does_not_know_fskintras_directories():

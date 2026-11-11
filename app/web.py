@@ -123,6 +123,7 @@ def create_public_app(ctx):
                 'theme_next': theme_next,
                 'operator_name': settings.operator_name,
                 'retention_days': settings.cache_retention_days,
+                'marker_days': settings.marker_retention_days,
                 'inactive_days': settings.inactive_account_days,
                 'signup_days': settings.unfinished_signup_days,
                 'mail_host': settings.smtp.host,
