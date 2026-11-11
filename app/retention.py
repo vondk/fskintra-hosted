@@ -36,7 +36,7 @@ def _purge(ctx, tenant):
         return
     try:
         home = '%s/%s' % (ctx.settings.tenants_dir, tid)
-        if runner.purge_files(home):
+        if runner.purge_files(ctx.settings, home):
             conn = ctx.db()
             tenants.update(conn, tid, needs_catchup=1)
             tenants.audit(conn, tid, 'Hentede data slettet efter længere '

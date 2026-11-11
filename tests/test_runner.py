@@ -130,16 +130,18 @@ def test_busy_lock_returns_none(ctx):
                           'check', lock_timeout=0.1) is None
 
 
-def test_prune_cache_keeps_state_and_new_files(tmp_path):
-    cache = tmp_path / 'cache' / 'https' / 'skole'
-    cache.mkdir(parents=True)
-    old = cache / 'gammel.cache'
-    new = cache / 'ny.cache'
-    state = tmp_path / 'cache' / 'skole-bruger.state'
-    for p in (old, new, state):
-        p.write_text('x')
-    past = time.time() - 40 * 86400
-    os.utime(old, (past, past))
-    os.utime(state, (past, past))
-    runner.prune_cache(str(tmp_path), 30)
-    assert not old.exists() and new.exists() and state.exists()
+def test_cache_retention_is_handed_to_fskintra(ctx):
+    '''fskintra rydder selv op i cachen - driftslaget giver kun grænsen'''
+    tid, t = _tenant(ctx)
+    with_settings(ctx, cache_retention_days=17)
+    env = runner.build_env(ctx.settings, tid, jobs.profile_for(ctx, t))
+    assert env['FSKINTRA_PRUNE_CACHE_DAYS'] == '17'
+    # Markeringer af sendte mails ryddes ikke (kræver en aktiv beslutning)
+    assert 'FSKINTRA_PRUNE_MARKERS_DAYS' not in env
+
+
+def test_runner_does_not_know_fskintras_directories():
+    with open(runner.__file__, encoding='utf-8') as f:
+        source = f.read()
+    for name in ("'cache'", "'msg'", "'state'", 'state.json', '.state'):
+        assert name not in source

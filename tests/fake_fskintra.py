@@ -3,12 +3,28 @@ gemmes i FSKINTRA_ROOT/env.json, så tests kan se præcis hvad der sendes"""
 import datetime
 import json
 import os
+import shutil
 import sys
 import time
 
 root = os.environ['FSKINTRA_ROOT']
 with open(os.path.join(root, 'env.json'), 'w') as f:
     json.dump({'env': dict(os.environ), 'args': sys.argv[1:]}, f)
+
+if '--purge' in sys.argv:
+    # Som det rigtige fskintra: slet alt gemt og skriv, hvad der blev slettet
+    purged = []
+    for name in ('cache', 'msg', 'state'):
+        path = os.path.join(root, name)
+        if os.path.lexists(path):
+            shutil.rmtree(path)
+            purged.append(path)
+    path = os.path.join(root, os.environ.get('FSKINTRA_OVERVIEW_JSON', ''))
+    if os.path.isfile(path):
+        os.unlink(path)
+        purged.append(path)
+    print(json.dumps({'purged': purged}))
+    sys.exit(0)
 
 user = os.environ.get('FSKINTRA_USERNAME', '')
 if user == 'forkert':
