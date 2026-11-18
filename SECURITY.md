@@ -9,14 +9,15 @@ repo. Opret ikke et offentligt issue. Du får svar inden for et par dage.
 
 | Trussel | Kontrol |
 |---|---|
-| Læk af database, volume eller snapshot | Kodeord og API-nøgler er krypteret med AES-256-GCM. Nøglen (`MASTER_KEY`) findes kun som Fly secret. Tokens og sessions gemmes kun som SHA-256. Kalenderlinket gemmes som SHA-256 (opslag) plus en krypteret kopi (så det kan vises igen). Volumet er krypteret at rest. |
+| Læk af database, volume eller snapshot | Kodeord og API-nøgler er krypteret med AES-256-GCM. Nøglen (`MASTER_KEY`) findes kun som Fly secret. Tokens og sessions gemmes kun som SHA-256. Kalenderlinket og linket til Home Assistant gemmes som SHA-256 (opslag) plus en krypteret kopi (så det kan vises igen). Volumet er krypteret at rest. |
 | SSRF via skolens adresse | Kun adresser fra `ALLOWED_SCHOOL_HOSTS`, som desuden skal matche `*.m.skoleintra.dk` |
 | Overtaget session omdirigerer mails | Nye modtagere skal godkendes fra login-mailen og bekræftes af modtageren. "Log ud overalt" findes. Login-mailen kan ikke ændres. |
 | CSRF, XSS, clickjacking | Double-submit CSRF-token (primært værn) og Origin-tjek som ekstra lag (fremmed Origin afvises, `null` afgøres af tokenet). `Referrer-Policy: same-origin`. Jinja-autoescape. CSP `default-src 'none'` uden JS. `frame-ancestors 'none'`. |
-| Brute force | Rate limits på tilmelding, login, links, login-tjek, "hent nu" og kalenderlinks. Invitationskoden skal være mindst 12 tegn. |
+| Brute force | Rate limits på tilmelding, login, links, login-tjek, "hent nu", kalenderlinks og links til Home Assistant. Invitationskoden skal være mindst 12 tegn. |
 | Mail-scannere bruger engangslinks | GET viser kun en knap. Linket forbruges først ved POST. |
 | Gæt eller tyveri af login-kode | Koden (6 cifre, 15 min.) virker kun sammen med en tilfældig `__Host-code`-cookie i den browser, der bad om den. Databasen har kun SHA-256 af cookien og af cookie+kode. Højst 5 forsøg pr. kode og 10 pr. adresse i døgnet. Samme svar uanset om adressen findes, også i svartid (mails sendes i baggrunden). Samme kode fra samme browser inden for 30 sek. efter brug accepteres (dobbelttryk uden JS) og tæller med i de 5 forsøg. |
 | Læk eller gæt af kalenderlink | Linket (`/kalender/<token>.ics`, 256 bit) er valgfrit og giver kun læseadgang til kalenderen: lektier, afleveringer, ture og ændrede tider fra i dag og frem. Det giver ikke adgang til konto, indstillinger eller mails. Det kan fornyes eller slås fra på Status. Abonnementsknappen bruger `webcals://`, så tokenet ikke sendes over http. Der er ingen access-log, og fejl logges med rutens mønster i stedet for adressen. Svaret sætter ingen cookies og har `no-store`. Højst 120 hentninger i timen pr. link og 60 ukendte links i timen pr. IP. |
+| Læk eller gæt af link til Home Assistant | Linket (`/overblik/<token>.json`, 256 bit) er valgfrit og giver kun læseadgang til overblikket, som fskintra skrev det: børnenes navne, punkter fra ugeplanerne og seneste ændring med AI-resumé. Det giver ikke adgang til konto, indstillinger eller mails. Det har sit eget token, så det kan fornyes eller slås fra på Status uden at røre kalenderlinket, og et kalendertoken virker ikke her (og omvendt). Samme beskyttelse som kalenderlinket: ingen access-log, fejl logges med rutens mønster, ingen cookies, `no-store`, højst 120 hentninger i timen pr. link og 60 ukendte links i timen pr. IP. |
 | Én forælder påvirker en anden | Én subprocess pr. kørsel med miljø fra en allowlist, eget katalog (0700), rlimits og timeout på hele procesgruppen. SQL er altid afgrænset til sessionens forælder. |
 | AI-cache på tværs af forældre | Nøglen er SHA-256 af hele forespørgslen, så man kun får et svar, hvis man selv har den identiske ugeplan. Barnets navn indgår ikke, og cachen har ingen kobling til en forælder. Proxyen lytter kun på 127.0.0.1 og kræver et engangstoken, der kun gælder under kørslen og kun findes i hukommelsen. fskintra får hverken den fælles eller forælderens egen API-nøgle. Kun hele svar gemmes, i højst 14 dage. |
 | Låst konto hos skolen | Exit-kode 3 (afvist login) giver pause med det samme. Login-tjek er begrænset til 5 i timen. |
@@ -38,10 +39,10 @@ Mistanke om læk af data, nøgler eller adgang:
    - Generér en ny `MASTER_KEY`, og sæt den gamle som `MASTER_KEY_OLD`. Ved
      opstart genkrypteres alt. Fjern derefter `MASTER_KEY_OLD`.
    - Skift `INVITE_CODE`, SMTP-kodeord, Anthropic-nøgle og Fly deploy-token.
-3. **Invalidér sessions og kalenderlinks:**
-   `fly ssh console -C "sqlite3 /data/app.db 'DELETE FROM sessions; UPDATE tenants SET ics_token_hash = NULL, ics_token_enc = NULL, ics_created_at = NULL'"`
+3. **Invalidér sessions, kalenderlinks og links til Home Assistant:**
+   `fly ssh console -C "sqlite3 /data/app.db 'DELETE FROM sessions; UPDATE tenants SET ics_token_hash = NULL, ics_token_enc = NULL, ics_created_at = NULL, feed_token_hash = NULL, feed_token_enc = NULL, feed_created_at = NULL'"`
 4. **Informér forældrene**, og bed dem skifte deres ForældreIntra-kodeord
-   og lave et nyt kalenderlink.
+   og lave et nyt kalenderlink og link til Home Assistant.
 5. **Anmeld** til Datatilsynet inden for 72 timer, hvis personoplysninger
    kan være kompromitteret (databrud.dk).
 6. Notér hændelsesforløbet.

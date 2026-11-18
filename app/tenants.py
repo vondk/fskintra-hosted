@@ -15,7 +15,7 @@ from .db import now
 
 TENANT_ID_RE = re.compile(r'^[0-9a-f]{32}$')
 # secrets.token_urlsafe(32)
-ICS_TOKEN_RE = re.compile(r'^[A-Za-z0-9_-]{43}$')
+LINK_TOKEN_RE = re.compile(r'^[A-Za-z0-9_-]{43}$')
 # Kun ASCII: mange SMTP-servere understøtter ikke SMTPUTF8
 EMAIL_RE = re.compile(r"^[A-Za-z0-9.!#$%&*+/=?^_`{|}~-]+"
                       r'@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$')
@@ -67,7 +67,8 @@ UPDATABLE = frozenset((
     'password_enc', 'children', 'sections', 'ai_mode', 'ai_key_enc',
     'ai_model', 'needs_catchup', 'run_requested', 'fail_count',
     'last_run_at', 'last_exit', 'ics_token_hash', 'ics_token_enc',
-    'ics_created_at', 'inactive_warned_at'))
+    'ics_created_at', 'feed_token_hash', 'feed_token_enc', 'feed_created_at',
+    'inactive_warned_at'))
 
 
 def update(conn, tenant_id, **fields):
@@ -103,7 +104,8 @@ def rotate_keys(conn, crypto):
     for t in all_tenants(conn):
         for column, field in (('password_enc', 'password'),
                               ('ai_key_enc', 'ai_key'),
-                              ('ics_token_enc', 'ics_token')):
+                              ('ics_token_enc', 'ics_token'),
+                              ('feed_token_enc', 'feed_token')):
             value = t[column]
             if value and crypto.needs_rotation(value):
                 try:
@@ -116,51 +118,80 @@ def rotate_keys(conn, crypto):
     return n
 
 
-# Kalenderlink: et hemmeligt token i adressen giver læseadgang til
-# kalenderen uden login (en kalender-app kan ikke logge ind)
+# Hemmelige links: et token i adressen giver læseadgang uden login (en
+# kalender-app eller en anden fskintra kan ikke logge ind).
+# * 'ics': kalenderlinket (kalender-apps)
+# * 'feed': overblikket som JSON til Home Assistant via en anden fskintra
+#   (--overview-from-url). Et eget token, for det giver adgang til mere end
+#   kalenderen, og det skal kunne fornyes uden at røre kalenderen
+# Formatet er (kolonne med hash, krypteret kopi, oprettet, felt til AAD)
+LINKS = {
+    'ics': ('ics_token_hash', 'ics_token_enc', 'ics_created_at', 'ics_token'),
+    'feed': ('feed_token_hash', 'feed_token_enc', 'feed_created_at',
+             'feed_token'),
+}
 
-def _ics_hash(token):
+
+def _link_hash(token):
     return hashlib.sha256(token.encode('utf-8')).hexdigest()
 
 
-def new_ics_token(conn, crypto, tenant_id):
-    '''Lav et (nyt) kalenderlink - et tidligere holder op med at virke.
+def new_link_token(conn, crypto, tenant_id, kind):
+    '''Lav et (nyt) hemmeligt link - et tidligere holder op med at virke.
 
     Opslag sker på en hash, så et læk af databasen ikke giver adgang. Den
     krypterede kopi er kun til at vise linket igen på statussiden'''
+    hash_col, enc_col, created_col, field = LINKS[kind]
     token = secrets.token_urlsafe(32)
-    update(conn, tenant_id, ics_token_hash=_ics_hash(token),
-           ics_token_enc=crypto.encrypt(token, tenant_id, 'ics_token'),
-           ics_created_at=now())
+    update(conn, tenant_id, **{
+        hash_col: _link_hash(token),
+        enc_col: crypto.encrypt(token, tenant_id, field),
+        created_col: now()})
     return token
 
 
-def clear_ics_token(conn, tenant_id):
-    update(conn, tenant_id, ics_token_hash=None, ics_token_enc=None,
-           ics_created_at=None)
+def clear_link_token(conn, tenant_id, kind):
+    update(conn, tenant_id, **dict.fromkeys(LINKS[kind][:3]))
 
 
-def get_by_ics_token(conn, token):
-    if not ICS_TOKEN_RE.match(token or ''):
+def get_by_link_token(conn, token, kind):
+    if not LINK_TOKEN_RE.match(token or ''):
         return None
-    return conn.execute('SELECT * FROM tenants WHERE ics_token_hash = ?',
-                        (_ics_hash(token),)).fetchone()
+    # Kolonnenavnet kommer kun fra den faste liste LINKS
+    return conn.execute('SELECT * FROM tenants WHERE %s = ?'  # nosec B608
+                        % LINKS[kind][0], (_link_hash(token),)).fetchone()
 
 
-def ics_token(crypto, tenant):
-    '''Tokenet til det aktive kalenderlink - eller tom streng, hvis der
-    ikke er noget, eller det ikke kan dekrypteres (fx forkert MASTER_KEY)'''
-    if not tenant['ics_token_hash'] or not tenant['ics_token_enc']:
+def link_token(crypto, tenant, kind):
+    '''Tokenet til det aktive link - eller tom streng, hvis der ikke er
+    noget, eller det ikke kan dekrypteres (fx forkert MASTER_KEY)'''
+    hash_col, enc_col, _created, field = LINKS[kind]
+    if not tenant[hash_col] or not tenant[enc_col]:
         return ''
     try:
-        token = crypto.decrypt(tenant['ics_token_enc'], tenant['id'],
-                               'ics_token')
+        token = crypto.decrypt(tenant[enc_col], tenant['id'], field)
     except DecryptError:
         return ''
     # Den krypterede kopi skal høre til det link, der virker
-    if _ics_hash(token) != tenant['ics_token_hash']:
+    if _link_hash(token) != tenant[hash_col]:
         return ''
     return token
+
+
+def new_ics_token(conn, crypto, tenant_id):
+    return new_link_token(conn, crypto, tenant_id, 'ics')
+
+
+def clear_ics_token(conn, tenant_id):
+    clear_link_token(conn, tenant_id, 'ics')
+
+
+def get_by_ics_token(conn, token):
+    return get_by_link_token(conn, token, 'ics')
+
+
+def ics_token(crypto, tenant):
+    return link_token(crypto, tenant, 'ics')
 
 
 def sections(tenant):
@@ -283,6 +314,8 @@ def export(conn, tenant_id):
             # Selve linket er en hemmelighed og er ikke med
             'kalenderlink': bool(t['ics_token_hash']),
             'kalenderlink_oprettet': t['ics_created_at'],
+            'home_assistant_link': bool(t['feed_token_hash']),
+            'home_assistant_link_oprettet': t['feed_created_at'],
         },
         'modtagere': [{'email': r['email'],
                        'godkendt': r['approved_at'],
