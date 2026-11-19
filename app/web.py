@@ -49,6 +49,10 @@ MESSAGES = {
     'ics_new': 'Du har fået et nyt kalenderlink. Det gamle virker ikke '
                'længere.',
     'ics_removed': 'Kalenderlinket er slået fra.',
+    'feed_created': 'Linket til Home Assistant er klar.',
+    'feed_new': 'Du har fået et nyt link til Home Assistant. Det gamle virker '
+                'ikke længere.',
+    'feed_removed': 'Linket til Home Assistant er slået fra.',
 }
 # Sider med en Opdatér-knap (en web app har ingen genindlæs-knap). Faste
 # adresser, så /opdater aldrig sender videre til noget fra formularen
@@ -56,10 +60,13 @@ REFRESH_TARGETS = {'overblik': '/overblik?m=updated',
                    'status': '/status?m=updated'}
 # Vises ved kalenderafsnittet og ikke øverst på siden
 CALENDAR_MESSAGES = ('ics_created', 'ics_new', 'ics_removed')
+FEED_MESSAGES = ('feed_created', 'feed_new', 'feed_removed')
 
 # En kalender henter typisk feedet et par gange i timen. Grænsen gælder
 # alle, der har linket, tilsammen
 ICS_FETCHES_PER_HOUR = 120
+# En fskintra med --overview-from-url henter typisk en gang i timen
+FEED_FETCHES_PER_HOUR = 120
 
 PAUSE_REASONS = {
     'user': 'Du har selv sat hentningen på pause.',
@@ -452,6 +459,13 @@ def create_public_app(ctx):
         return {'url': settings.public_url + path,
                 'subscribe': 'webcals://%s%s' % (public_host, path)}
 
+    def feed_link(t):
+        '''Adressen til forælderens link til Home Assistant - eller None'''
+        token = tenants.link_token(ctx.crypto, t, 'feed')
+        if not token:
+            return None
+        return settings.public_url + '/overblik/%s.json' % token
+
     @app.get('/status')
     @login_required
     def status():
@@ -459,9 +473,12 @@ def create_public_app(ctx):
         m = request.args.get('m', '')
         text = MESSAGES.get(m) or refreshed('Siden')
         in_calendar = m in CALENDAR_MESSAGES
+        in_feed = m in FEED_MESSAGES
         return render_template(
-            'status.html', msg=None if in_calendar else text,
+            'status.html',
+            msg=None if in_calendar or in_feed else text,
             cal_msg=text if in_calendar else None, cal=calendar_links(t),
+            feed_msg=text if in_feed else None, feed=feed_link(t),
             children=tenants.children(t),
             pause_reason=PAUSE_REASONS.get(t['pause_reason'] or ''),
             recipients=tenants.recipients(conn(), t['id']),
@@ -699,6 +716,53 @@ def create_public_app(ctx):
         tenants.clear_ics_token(conn(), t['id'])
         tenants.audit(conn(), t['id'], 'Kalenderlink slået fra')
         return redirect('/status?m=ics_removed#kalender', 303)
+
+    # Link til Home Assistant (overblikket som JSON til en anden fskintra)
+
+    @app.post('/homeassistant/nyt')
+    @login_required
+    def feed_new():
+        t = g.tenant
+        if limited('feed-new', t['id'], 10):
+            return message('For mange forsøg', 'Prøv igen om en time.', 429)
+        renewed = bool(t['feed_token_hash'])
+        tenants.new_link_token(conn(), ctx.crypto, t['id'], 'feed')
+        tenants.audit(conn(), t['id'], 'Link til Home Assistant fornyet'
+                      if renewed else 'Link til Home Assistant oprettet')
+        return redirect('/status?m=%s#homeassistant'
+                        % ('feed_new' if renewed else 'feed_created'), 303)
+
+    @app.post('/homeassistant/slet')
+    @login_required
+    def feed_remove():
+        t = g.tenant
+        if not t['feed_token_hash']:
+            return redirect('/status#homeassistant', 303)
+        tenants.clear_link_token(conn(), t['id'], 'feed')
+        tenants.audit(conn(), t['id'], 'Link til Home Assistant slået fra')
+        return redirect('/status?m=feed_removed#homeassistant', 303)
+
+    @app.get('/overblik/<token>.json')
+    def overview_feed(token):
+        '''Overblikket, præcis som fskintra skrev det, til en anden fskintra
+        (--overview-from-url), der sender det til Home Assistant. Tokenet i
+        adressen er den eneste adgangskontrol - der er hverken session eller
+        CSRF'''
+        g.csrf_new = False
+        t = tenants.get_by_link_token(conn(), token, 'feed')
+        if t is None:
+            if limited('feed-miss', client_ip(), 60):
+                return plain('For mange forsøg', 429)
+            return plain('Linket virker ikke', 404)
+        if limited('feed', t['id'], FEED_FETCHES_PER_HOUR):
+            return plain('For mange forsøg', 429)
+        data = overview.load(settings, t['id'])
+        if data is None:
+            # Før første hentning (eller en ugyldig fil): intet at sende.
+            # Modtageren lader Home Assistant være, som det er
+            return plain('Intet overblik endnu', 503)
+        return Response(json.dumps(data, ensure_ascii=False),
+                        mimetype='application/json')
 
     @app.get('/kalender/<token>.ics')
     def calendar_feed(token):

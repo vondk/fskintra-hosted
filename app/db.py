@@ -104,6 +104,14 @@ MIGRATIONS = [
         created_at INTEGER NOT NULL
     );
     ''',
+    # 6: hemmeligt link til overblikket som JSON (Home Assistant via en
+    # anden fskintra). Som kalenderlinket: hash til opslag, krypteret kopi
+    '''
+    ALTER TABLE tenants ADD COLUMN feed_token_hash TEXT;
+    ALTER TABLE tenants ADD COLUMN feed_token_enc TEXT;
+    ALTER TABLE tenants ADD COLUMN feed_created_at INTEGER;
+    CREATE UNIQUE INDEX tenants_feed_token ON tenants (feed_token_hash);
+    ''',
 ]
 
 _local = threading.local()

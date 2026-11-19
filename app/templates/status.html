@@ -164,6 +164,51 @@ ikke "husk at medbringe". Bruger du fx Google eller Apple, er det deres
 servere, der henter kalenderen, og de kan dermed se indholdet.</p>
 {% endif %}
 
+<h2 id="homeassistant">Home Assistant</h2>
+{% if feed_msg %}<p class="flash" role="status">{{ feed_msg }}</p>{% endif %}
+{% set feed_renew %}
+<div class="buttons">
+  <form method="post" action="/homeassistant/nyt">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit" class="secondary">Lav nyt link</button></form>
+  <form method="post" action="/homeassistant/slet">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit" class="secondary">Slå fra</button></form>
+</div>
+{% endset %}
+{% if feed %}
+<p>Din egen fskintra henter overblikket herfra og sender det til Home
+Assistant: sensoren med overblikket, lektier som to-do og ture i
+kalenderen.</p>
+<p class="linkbox">Link til Home Assistant
+  <a class="copy" href="{{ feed }}">{{ feed }}</a></p>
+<p class="hint">Sæt linket i <code>FSKINTRA_OVERVIEW_URL</code>, og kør
+fskintra med <code>--overview-from-url</code>. Se
+<a href="https://github.com/vondk/fskintra/blob/master/docs/overblik.md" rel="noopener noreferrer">vejledningen</a>.</p>
+<p class="hint">Linket virker som et kodeord: alle, der har det, kan se hele
+overblikket med børnenes navne, lektier, ture og seneste ændring. Lav et
+nyt, hvis det er kommet i de forkerte hænder. Så holder det gamle op med at
+virke. Oprettet {{ tenant.feed_created_at|dt }}.</p>
+{{ feed_renew }}
+{% elif tenant.feed_token_hash %}
+<p class="warn">Linket til Home Assistant kan ikke vises lige nu. Det virker
+stadig, hvor det allerede er sat op. Lav et nyt link, hvis du skal bruge
+det et nyt sted.</p>
+{{ feed_renew }}
+{% else %}
+<p>Har du din egen fskintra og Home Assistant derhjemme, kan den hente
+overblikket herfra i stedet for selv at hente fra ForældreIntra. Så kaldes
+AI kun her, og du får ikke mails to gange.</p>
+<div class="buttons">
+  <form method="post" action="/homeassistant/nyt">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button type="submit">Lav link til Home Assistant</button></form>
+</div>
+<p class="hint">Du får et hemmeligt link, som din fskintra henter
+overblikket fra. Det er det samme som <a href="/overblik">Overblik</a>, også
+"husk at medbringe" og seneste ændring.</p>
+{% endif %}
+
 <h2>Dine data</h2>
 <div class="buttons">
   <a class="button secondary" href="/export" download>Download dine data (JSON)</a>

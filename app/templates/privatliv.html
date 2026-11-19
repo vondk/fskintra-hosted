@@ -28,6 +28,8 @@ skolen eller itslearning. Fejl kan meldes på
       <td data-label="Hvordan">På krypteret disk. Slettes 14 dage efter ugens udløb, og efter {{ retention_days }} dages pause</td></tr>
   <tr><td>Kalenderlink (valgfrit)</td><td data-label="Formål">Vise lektier, afleveringer og ture i din egen kalender</td>
       <td data-label="Hvordan">En hash til opslag og en krypteret kopi, så linket kan vises igen. Slettes, når du slår linket fra, eller med kontoen</td></tr>
+  <tr><td>Link til Home Assistant (valgfrit)</td><td data-label="Formål">Lade din egen fskintra hente overblikket og sende det til din Home Assistant</td>
+      <td data-label="Hvordan">En hash til opslag og en krypteret kopi, så linket kan vises igen. Slettes, når du slår linket fra, eller med kontoen</td></tr>
   <tr><td>Log over de seneste 10 kørsler og 50 hændelser</td><td data-label="Formål">Fejlfinding</td>
       <td data-label="Hvordan">Kan indeholde børnenes navne og titler på beskeder. Ingen kodeord. Slettes efter højst 30 dage</td></tr>
   <tr><td>Login på siden (session)</td><td data-label="Formål">Holde dig logget ind</td>
@@ -58,6 +60,9 @@ skolen eller itslearning. Fejl kan meldes på
 iCloud, er det den tjeneste, der henter kalenderen. Den kan se indholdet
 (børnenes fornavne, fag, lektier og ture), og det kan blive behandlet uden
 for EU. Det sker kun, hvis du selv tilføjer linket.</p>
+<p>Laver du et link til Home Assistant, er det din egen fskintra, der henter
+overblikket. Det går direkte fra serveren til den og videre til din Home
+Assistant, uden andre tjenester imellem.</p>
 
 <h2>Sikkerhed</h2>
 <ul>
@@ -71,6 +76,9 @@ for EU. Det sker kun, hvis du selv tilføjer linket.</p>
   <li>Et kalenderlink virker som et kodeord: alle, der har linket, kan se
   kalenderen, men ikke andet. Du kan lave et nyt eller slå det fra under
   <em>Status</em>.</li>
+  <li>Det samme gælder linket til Home Assistant, men det viser hele
+  overblikket. Det er et andet link end kalenderens, så det ene kan fornyes
+  uden det andet.</li>
   <li>Hver forælder køres i sin egen proces og har sit eget katalog.</li>
   <li>Bliver dit kodeord afvist, stopper hentningen med det samme, så din
   konto hos skolen ikke bliver låst.</li>

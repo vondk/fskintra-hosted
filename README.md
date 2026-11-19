@@ -8,7 +8,9 @@ hoste noget og uden Home Assistant.
 
 Siden *Overblik* samler lektier, afleveringer, ture og ændringer fra
 ugeplanerne pr. barn. Forælderen kan også lave et hemmeligt kalenderlink
-(ICS) og abonnere på det i sin egen kalender.
+(ICS) og abonnere på det i sin egen kalender. Har forælderen sin egen
+fskintra og Home Assistant, kan den hente overblikket via et hemmeligt link
+(`fskintra.py --overview-from-url`), så AI kun kaldes her.
 
 Kører på Fly.io i EU (én maskine og et krypteret volume, ca. 35 kr/md inkl.
 moms for en klasse).
@@ -26,8 +28,9 @@ Fly Machine (arn), non-root
 │   └─ subprocess: vendor/fskintra/fskintra.py  (env kun fra en allowlist)
 ├─ /data/app.db         SQLite, hemmeligheder AES-256-GCM-krypteret
 └─ /data/tenants/<id>/  FSKINTRA_ROOT pr. forælder (0700)
-    └─ overblik.json    skrives af fskintra, vises på /overblik og som
-                        kalender på /kalender/<token>.ics
+    └─ overblik.json    skrives af fskintra, vises på /overblik, som
+                        kalender på /kalender/<token>.ics og som JSON
+                        til Home Assistant på /overblik/<token>.json
 ```
 
 `vendor/fskintra` er et git submodule, der er låst til en bestemt commit.
@@ -50,7 +53,9 @@ Fly Machine (arn), non-root
   access-log, fordi URL'er kan indeholde tokens.
 * **Kalenderlinket** er valgfrit og virker som et kodeord til kalenderen
   (kun læsning). Der gemmes en SHA-256 til opslag og en krypteret kopi, så
-  det kan vises igen. Det kan fornyes eller slås fra.
+  det kan vises igen. Det kan fornyes eller slås fra. **Linket til Home
+  Assistant** virker på samme måde, men med sit eget token, for det viser
+  hele overblikket.
 * **Afvist login** sætter forælderen på pause med det samme, så kontoen hos
   skolen ikke låses.
 * **Dataminimering:** Der gemmes ingen kopier af sendte mails. Cachen
